@@ -2,19 +2,27 @@
 
 #pragma once
 
+#include <iostream>
+#include <vector>
+
+// Forward declarations:
+class Eigen::Vector3d;
+class Eigen::Quaterniond;
+class ceres::Problem;
+
 // Generic base sensor class
 class Sensor
 {
-
 public:
-  Sensor(std::string _name="generic"):name(_name);
+  Sensor(std::string _name="generic"):name(_name){};
   Sensor(std::istream& is);
-  
+
+  virtual ~Sensor();
 
   virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk)=0;
 
   virtual void InitCeresProblem(ceres::Problem& prob,
-				std::vector<Eigen::Vector3d>& ldmk) = 0;
+				    std::vector<Eigen::Vector3d>& ldmk) = 0;
 
   virtual void WriteToStream (std::ostream& os) = 0;
   virtual void ReadFromStream(std::istream& is) = 0;

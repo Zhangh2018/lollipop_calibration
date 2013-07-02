@@ -5,9 +5,16 @@ Makefile
 cmake_install.cmake
 install_manifest.txt
 
+# Eclipse stuff
+.cproject
+.project
+
 # Output dir
 bin/
 build/
+lib/
+
+# Data files
 data/
 
 # Temporary objects/files

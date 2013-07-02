@@ -13,7 +13,7 @@ include_directories(${CERES_INCLUDES})
 find_package(PCL 1.5 REQUIRED PATHS /usr NO_DEFAULT_PATH)
 
 include_directories(
-  ${PCL_INCLUDE_DIRS}
+   ${PROJECT_SOURCE_DIR}/include/
    /usr/local/include/yaml-cpp/
    ${CERES_INCLUDES}
    ${PCL_INCLUDE_DIRS}
