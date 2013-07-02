@@ -82,20 +82,14 @@ int main(int argc, char** argv)
 
   // Load the display config file
   YAML::Node config = YAML::LoadFile(argv[1]);
-  int nPCDs, nObjs;
-  if (config["NumPCD"])
-    nPCDs = config["NumPCD"].as<int>();
-  if (config["NumObj"])
-    nObjs = config["NumObj"].as<int>();
   const std::string glob_prefix = config["GlobalPathPrefix"].as<std::string>();
-
 
   // Set up PCL::Visualizer related variables:
   viewer = boost::shared_ptr<PCLVisualizer>(new PCLVisualizer(argc, argv, "show_pcd"));
   viewer->registerPointPickingCallback(&pointpicking_cb);
 
   // Set up visualizer callback functions
-  for (int i=0; i< nPCDs; ++i)
+  for (int i=0; i< config["PCDs"].size(); ++i)
     {
       Cloud::Ptr cloud(new Cloud), cloud_tf(new Cloud);
 
@@ -135,10 +129,11 @@ int main(int argc, char** argv)
       viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
     }
 
-  for (int i=0; i < nObjs; ++i)
+  for (int i=0; i < config["Objects"].size(); ++i)
     {
       YAML::Node node = config["Objects"][i];
       std::string obj_type = node["Type"].as<std::string>();
+      std::cout << "Add object " << obj_type;
       if (obj_type == "sphere")
 	{
 	  Point p;
@@ -147,7 +142,9 @@ int main(int argc, char** argv)
 	  p.z = node["Origin"][2].as<float>();
 	  std::stringstream ss;
 	  ss << "sphere_" << i;
-	  viewer->addSphere(p, node["Radius"].as<double>(), ss.str());
+	  double radius = node["Radius"].as<double>();
+	  viewer->addSphere(p, radius, ss.str());
+	  std::cout << " at "<<p << " with r="<<radius<<std::endl;
 	}
     }
   // Let it run forever
