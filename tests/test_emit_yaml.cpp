@@ -87,12 +87,12 @@ void test_emitter(std::ostream& os)
   out <<YAML::BeginMap;
   //  out <<YAML::Key << "NumPCDs" << YAML::Value << 2;
   //  out <<YAML::Key << "NumObjs" << YAML::Value << 2;
-  out <<YAML::Key << "GlobalPathPrefix"  << YAML::Value << "/home/ming/Project/PCL/";
+  out <<YAML::Key << "GlobalPathPrefix"  << YAML::Value << "/home/ming/Project/PCL/lollipop_calibration/data/xtion/";
   out <<YAML::Key << "PCDs" << YAML::Value << YAML::BeginSeq;
   for(int i=0; i<2; i++)
     {
       out << YAML::BeginMap;
-      out << YAML::Key << "Path" << YAML::Value << "data/xtion/x0_0.pcd";
+      out << YAML::Key << "Path" << YAML::Value << "x0_0.pcd";
       out << YAML::Key << "Origin" << YAML::Value;
       out << YAML::Flow << YAML::BeginSeq << 0<<0<<0<<1<<0<<0<<0<<YAML::EndSeq;
       out << YAML::Key << "Color" << YAML::Value;
@@ -115,6 +115,7 @@ void test_emitter(std::ostream& os)
   for (int i=0; i< 1; ++i)
     {
       out << YAML::BeginMap;
+      out << YAML::Key << "Type"   << YAML::Value << "sphere";
       out << YAML::Key << "Origin" << YAML::Value;
       out << YAML::Flow << YAML::BeginSeq << 0 << 0 << 0<< YAML::EndSeq;
       out << YAML::Key << "Radius" << YAML::Value << 0.1275;

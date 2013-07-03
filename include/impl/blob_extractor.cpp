@@ -4,8 +4,6 @@
 #include <queue>
 #include <cfloat>
 
-extern const float g_radius;
-
 // Math util functions to find the vector norm
 float inline L2_sqr(PointT& p)
 {
@@ -21,12 +19,36 @@ ImageBlobExtractor::ImageBlobExtractor(float _f, float r, int min_volumn, int ma
 :f(_f), r2(r*r), min_v(min_volumn), max_v(max_volumn)
 {}
 
-void setInputCloud(CloudT::Ptr cloud, std::vector<bool>& mask)
+void setInputCloud(CloudT::Ptr c)
 {
-
+  cloud = c;
 }
 
-void extract(std::vector<pcl::PointIndices>& cluster_list)
+void extract(std::vector<pcl::PointIndices>& cluster_list, std::vector<char>& mask)
+{
+  std::vector<char> label(mask);
+  char label_count = 0x01;
+  std::vector<char> equiv(1);
+  // Skip first and last row
+  for(int i = cloud->width+1; i< mask.size()-cloud->width-1; ++i)
+    {
+      int west = i-1;
+      if (mask[west] == mask[i])
+	label[i];
+      else if (mask[west]==mask[i] && mask[north]==mask[i] && label[west]!=label[north])
+	{
+	  label[i] = std::min(label[west], label[north]);
+	  // TODO: left off from here last time
+	  char min_equiv = std::min();
+	}
+      // if this is the second last pixel of the row
+      if ((i+1) % cloud->width ==0)
+	i +=2; // move on the next row
+    }
+}
+
+
+void extract(std::vector<pcl::PointIndices>& cluster_list, std::vector<bool>& mask)
 {
   std::queue<int> q_list;
   std::vector<bool> processed(mask.size(), 0);
@@ -62,7 +84,7 @@ void extract(std::vector<pcl::PointIndices>& cluster_list)
           int r = j / cloud->width;
           int c = j % cloud->width;
           // The search window is a function of range
-          int w = static_cast<int>(floor(f / L2_norm(p) * g_radius));
+          int w = static_cast<int>(floor(f / L2_norm(p) * r));
 
 	  // Set this pixel to "processed"
 	  processed[j] = true;

@@ -66,6 +66,17 @@ void pointpicking_cb(const PointPickingEvent& event)
     }
 }
 
+void keyboardEvent_cb(const pcl::visualization::KeyboardEvent &event, void* cookie)
+{
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer = 
+    *static_cast<boost::shared_ptr<pcl::visualization::PCLVisualizer> *>(cookie);
+
+  if(event.getKeySym() == "n" && event.keyDown())
+    {
+      std::cout << "n was pressed" <<std::endl;
+    }
+}
+
 std::string splitPathName(const std::string& str)
 {
   int f_slash = str.find_last_of("/\\");
@@ -87,8 +98,30 @@ int main(int argc, char** argv)
   // Set up PCL::Visualizer related variables:
   viewer = boost::shared_ptr<PCLVisualizer>(new PCLVisualizer(argc, argv, "show_pcd"));
   viewer->registerPointPickingCallback(&pointpicking_cb);
+  //  viewer->registerKeyboardCallback(keyboardEvent_cb, (void*)&viewer);
+  viewer->addCoordinateSystem(0.05);
 
-  // Set up visualizer callback functions
+  Point p;
+  // TODO: assume only one object for now
+  for (int i=0; i < config["Objects"].size(); ++i)
+    {
+      YAML::Node node = config["Objects"][i];
+      std::string obj_type = node["Type"].as<std::string>();
+      std::cout << "Add object " << obj_type;
+      if (obj_type == "sphere")
+	{
+	  p.x = node["Origin"][0].as<float>();
+	  p.y = node["Origin"][1].as<float>();
+	  p.z = node["Origin"][2].as<float>();
+	  std::stringstream ss;
+	  ss << "sphere_" << i;
+	  double radius = node["Radius"].as<double>();
+	  viewer->addSphere(Point(0.0, 0.0, 0.0), radius, ss.str());
+	  std::cout << " at "<<p << " with r="<<radius<<std::endl;
+	}
+    }
+
+  // Load the PCDs:
   for (int i=0; i< config["PCDs"].size(); ++i)
     {
       Cloud::Ptr cloud(new Cloud), cloud_tf(new Cloud);
@@ -103,9 +136,9 @@ int main(int argc, char** argv)
 	transform and colorize the point cloud:
       */
       Eigen::Vector3f offset;
-      offset(0) = node["Origin"][0].as<float>();
-      offset(1) = node["Origin"][1].as<float>();
-      offset(2) = node["Origin"][2].as<float>();
+      offset(0) = node["Origin"][0].as<float>() - p.x;
+      offset(1) = node["Origin"][1].as<float>() - p.y;
+      offset(2) = node["Origin"][2].as<float>() - p.z;
       Eigen::Quaternionf quat( node["Origin"][3].as<float>(),  node["Origin"][4].as<float>(),
 			       node["Origin"][5].as<float>(),  node["Origin"][6].as<float>());
       
@@ -129,24 +162,6 @@ int main(int argc, char** argv)
       viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
     }
 
-  for (int i=0; i < config["Objects"].size(); ++i)
-    {
-      YAML::Node node = config["Objects"][i];
-      std::string obj_type = node["Type"].as<std::string>();
-      std::cout << "Add object " << obj_type;
-      if (obj_type == "sphere")
-	{
-	  Point p;
-	  p.x = node["Origin"][0].as<float>();
-	  p.y = node["Origin"][1].as<float>();
-	  p.z = node["Origin"][2].as<float>();
-	  std::stringstream ss;
-	  ss << "sphere_" << i;
-	  double radius = node["Radius"].as<double>();
-	  viewer->addSphere(p, radius, ss.str());
-	  std::cout << " at "<<p << " with r="<<radius<<std::endl;
-	}
-    }
   // Let it run forever
   viewer->spin();
 }

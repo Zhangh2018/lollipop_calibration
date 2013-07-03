@@ -1,26 +1,25 @@
 #pragma once
 
-#include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 
+template<typename T>
 class ImageBlobExtractor
 {
+  typedef typename pcl::PointCloud<T>::Ptr CloudPtr;
 public:
-  typedef pcl::PointXYZ PointT;
-  typedef pcl::PointCloud<PointT> CloudT;
-
   // Input:
   // float search_radius: how far should be considered connected
   // int [min|max]_volumn: what size should be considered a blot
   ImageBlobExtractor(float focal_length, float search_radius,
-                        int min_volumn, int max_volumn);
+		     int min_volumn, int max_volumn);
+  
+  void setInputCloud(CloudPtr cloud);
 
-  void SetInputCloud(CloudT::Ptr cloud, std::vector<bool>& mask);
-
-  std::vector<std::vector<int> >& GetBlobsIndices();
+  void extract(std::vector<pcl::PointIndices> cluster_list);
 
 private:
-  float f;
-  float r2; // r^2, where r is the search radius
+  float f;  // focal length
+  float r;  // search radius
   int min_v, max_v;
+  CloudPtr cloud;
 };
