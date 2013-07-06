@@ -6,6 +6,9 @@
 #include <sstream>
 #include <fstream>
 
+#include <pcl/point_types.h>
+#include "blob_extractor.hpp"
+
 void test_node(std::ostream& os);
 void test_emitter(std::ostream& os);
 
@@ -19,6 +22,8 @@ int main(int argc, char** argv)
   std::ofstream ofs(argv[1], std::ofstream::out);
   test_emitter(ofs);
   ofs.close();
+
+  ImageBlobExtractor<pcl::PointXYZ> ibe(1,1,1,1,1,1);
 }
 
 void test_node(std::ostream& os)

@@ -15,52 +15,35 @@ float inline L2_norm(PointT& p)
   return sqrt(L2_sqr(p));
 }
 
-ImageBlobExtractor::ImageBlobExtractor(float _f, float r, int min_volumn, int max_volumn)
-:f(_f), r2(r*r), min_v(min_volumn), max_v(max_volumn)
-{}
+ImageBlobExtractor::ImageBlobExtractor(float _f, float r, 
+				       int min_volumn, int max_volumn
+				       int min_count,  int max_count)
+  :f(_f), r2(r*r), min_v(min_volumn), max_v(max_volumn), 
+   min_c(min_count), max_c(max_count){}
 
-void setInputCloud(CloudT::Ptr c)
+void ImageBlobExtractor::setInputCloud(CloudT::Ptr c)
 {
   cloud = c;
 }
 
-void extract(std::vector<pcl::PointIndices>& cluster_list, std::vector<char>& mask)
+void ImageBlobExtractor::extract(std::vector<pcl::PointIndices>& cluster_list,
+				 std::vector<char>& mask)
 {
-  std::vector<char> label(mask);
-  char label_count = 0x01;
-  std::vector<char> equiv(1);
-  // Skip first and last row
-  for(int i = cloud->width+1; i< mask.size()-cloud->width-1; ++i)
-    {
-      int west = i-1;
-      if (mask[west] == mask[i])
-	label[i];
-      else if (mask[west]==mask[i] && mask[north]==mask[i] && label[west]!=label[north])
-	{
-	  label[i] = std::min(label[west], label[north]);
-	  // TODO: left off from here last time
-	  char min_equiv = std::min();
-	}
-      // if this is the second last pixel of the row
-      if ((i+1) % cloud->width ==0)
-	i +=2; // move on the next row
-    }
-}
+  std::queue<int> q_list; // stores current cluster indices
+  int cluster_id = 2; // one above unprocessed foreground
 
-
-void extract(std::vector<pcl::PointIndices>& cluster_list, std::vector<bool>& mask)
-{
-  std::queue<int> q_list;
-  std::vector<bool> processed(mask.size(), 0);
-
+  // Loop over all pixels
   for (int i=0; i< cloud->size(); ++i)
     {
-      // If it is background or has been processed, then skip it.
-      if (!mask[i] || processed[i])
+      // Skip if it is background
+      if (mask[i]==0)
         continue;
 
-      // Add this point to Q_list
+      // Starting a new cluster
+      q_list.clear();
       q_list.push_back(i);
+      mask[i] = cluster_id;
+      std::queue<int>::iterator it = q_list.begin();
 
       // Use bounding box for volumn measurement
       // TODO: is there a better way to determine the volumn?
@@ -69,63 +52,35 @@ void extract(std::vector<pcl::PointIndices>& cluster_list, std::vector<bool>& ma
       min_x = min_y = min_z = -std::numeric_limits<double>::infinity();
       max_x = max_y = max_z =  std::numeric_limits<double>::infinity();
 
-      // Pi holds all the indices for this cluster
-      pcl::PointIndices pi;
-
-      while(!q_list.empty())
-        {
-          // Take out the current head
-          int j = q_list.front();
-          q_list.pop();
-
-          PointT p& = cloud->points[j];
+      do{
+          // Check the current node
+          PointT p& = cloud->points[*it];
 
           // Convert linear index to row and column
           int r = j / cloud->width;
           int c = j % cloud->width;
           // The search window is a function of range
-          int w = static_cast<int>(floor(f / L2_norm(p) * r));
+          int w = static_cast<int>(floor(f / p.z * search_r));
 
-	  // Set this pixel to "processed"
-	  processed[j] = true;
-
-	  // Only flood from current row downward
-	   min_x = p.x; min_y = p.y; min_z = p.z;
-	   max_x = p.x; max_y = p.y; max_z = p.z;
-	  for(int r_ = r+w; r_ >= r; --r_)
+	  // Search within the window
+	  for(int r_ = r+w; r_ >= r-w; --r_)
 	    {
-	      bool left_flag = false;
-	      bool right_flag= false;
-	      for(int c_ = c+w; c_ >=0; --c_)
+	      for(int c_ = c+w; c_ >=c-w; --c_)
 		{
 		  int linear_idx = r_*cloud->height+c_;
+		  //1. boundary check
+		  //2. skip if this pixel is not unprocessed foreground
 		  if (r_>cloud->height || c_>cloud->width ||
-		      !mask[linera_idx]|| processed[linear_idx])
+		      mask[linear_idx] != 1)
 		    continue;
 
 		  PointT q& = cloud->points[linear_idx];
-		  if(L2_sqr(q-p) < r2)
+		  if(L2_sqr(q-p) < search_r*search_r)
                     {
+		      // Add this point to Q_list
                       q_list.push_back(linear_idx);
-                      if(q.z < min_z) min_z = q.z;
-		      if(q.x > max_x) max_x = q.x;
-                      if(q.y > max_y) max_y = q.y;
-                      if(q.z > max_z) max_z = q.z;
-		    }
-		}
-
-	      for(int c_ = c+w; c_ >=0; --c_)
-		{
-		  int linear_idx = r_*cloud->height+c_;
-		  if (r_>cloud->height || c_>cloud->width ||
-		      !mask[linera_idx]|| processed[linear_idx])
-		    continue;
-
-		  PointT q& = cloud->points[linear_idx];
-		  if(L2_sqr(q-p) < r2)
-                    {
-                      q_list.push_back(linear_idx);
-		      if(q.x < min_x) min_x = q.x;
+		      mask[linear_idx] = cluster_id;
+                      if(q.x < min_x) min_x = q.x;
                       if(q.y < min_y) min_y = q.y;
                       if(q.z < min_z) min_z = q.z;
 		      if(q.x > max_x) max_x = q.x;
@@ -134,42 +89,29 @@ void extract(std::vector<pcl::PointIndices>& cluster_list, std::vector<bool>& ma
 		    }
 		}
 	    }
-          for(int r_ = r-w; r_ <= r+w; ++r)
-            {
-              for(int c_ = c-w; c_ <= c+w; ++c)
-                {
-                  // skip if it's marked as background or has been processed
-                  int linear_idx = r_*cloud->height+c_;
-                  if(r_<0 || r_>cloud->height ||
-                     c_<0 || c_>cloud->width  || // must be within boundary
-		     !mask[linear_idx]     || // don't process background 
-		     processed[linear_idx])   // don't double count 
-                    continue;
-
-                  PointT q& = cloud->points[linear_idx];
-                  // Check if this point is within range
-                  if(L2_sqr(q-p) < r2)
-                    {
-                      q_list.push_back(linear_idx);
-
-		      // Update bounding box
-                      if(q.x < min_x) min_x = q.x;
-                      if(q.y < min_y) min_y = q.y;
-                      if(q.z < min_z) min_z = q.z;
-                      if(q.x > max_x) max_x = q.x;
-                      if(q.y > max_y) max_y = q.y;
-                      if(q.z > max_z) max_z = q.z;		    
-                    }
-                }
-            }
-	  // Add this point to inlier indices
-	  pi.indices.push_back(j);
-        }//END OF WHILE
-
+	  // Move onto the next index in the Q_list
+	  ++it;
+      }while(it != q_list.end());
+      
+      // Done flooding this cluster
       // If this cluster meet the size requirement, then add to cluster list
       float volumn = (max_x-min_x)*(max_y-min_y)*(max_z-min_z);
-      if (volumn > min_v && volumn < max_v && !pi.indices.empty())
-        cluster_list.push_back(pi);
+      if (volumn > min_v && volumn < max_v && 
+	  q_list.size() > min_c && q_list.size() < max_c)
+	{
+	  pcl::PointIndices pi;
+	  cluster_list.push_back(pi);
+	  cluster_list.back().resize(q_list.size());
+	  std::list<int>::iterator   lit = q_list.begin();
+	  std::vector<int>::iterator vit = cluster_list.back().indices.begin(); 
+	  while(lit != q_list.end())
+	    {
+	      *vit = *lit;
+	      ++vit; ++lit; // for clarity, let's not mix "++" with "*"
+	    }
+	  // Increment cluster_id by 1
+	  ++cluster_id;
+	}
     }
 }
 
@@ -253,5 +195,4 @@ void extract(std::vector<pcl::PointIndices>& cluster_list)
         cluster_list.push_back(pi);
     }
 }
-
- */
+*/
