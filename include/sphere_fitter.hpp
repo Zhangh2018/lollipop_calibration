@@ -72,4 +72,4 @@ private:
   std::vector<ceres::CostFunction*> cost_fn;
 };
 
-#include "sphere_fitter.cpp"
+#include "impl/sphere_fitter.cpp"

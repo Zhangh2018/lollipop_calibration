@@ -1,36 +1,43 @@
 
 #include "blob_extractor.hpp"
 
-#include <queue>
+#include <list>
 #include <cfloat>
 
 // Math util functions to find the vector norm
-float inline L2_sqr(PointT& p)
+template <typename T>
+inline float L2_sqr(T& p)
 {
   return (p.x*p.x+p.y*p.y+p.z*p.z);
 }
 
-float inline L2_norm(PointT& p)
+template <typename T>
+inline float L2_norm(T& p)
 {
   return sqrt(L2_sqr(p));
 }
 
-ImageBlobExtractor::ImageBlobExtractor(float _f, float r, 
-				       int min_volumn, int max_volumn
-				       int min_count,  int max_count)
-  :f(_f), r2(r*r), min_v(min_volumn), max_v(max_volumn), 
-   min_c(min_count), max_c(max_count){}
+template <typename T>
+ImageBlobExtractor<T>::
+ImageBlobExtractor(float _f, float r, 
+		   int min_volumn, int max_volumn,
+		   int min_count,  int max_count)
+  :f(_f), search_r(r), min_v(min_volumn), max_v(max_volumn), 
+   min_c(min_count), max_c(max_count)
+{}
 
-void ImageBlobExtractor::setInputCloud(CloudT::Ptr c)
+template <typename T>
+void ImageBlobExtractor<T>::setInputCloud(typename pcl::PointCloud<T>::Ptr c)
 {
   cloud = c;
 }
 
-void ImageBlobExtractor::extract(std::vector<pcl::PointIndices>& cluster_list,
-				 std::vector<char>& mask)
+template <typename T>
+void ImageBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list,
+				    std::vector<char>& mask)
 {
-  std::queue<int> q_list; // stores current cluster indices
-  int cluster_id = 2; // one above unprocessed foreground
+  std::list<int> q_list; // stores current cluster indices
+  char cluster_id = 2; // one above unprocessed foreground
 
   // Loop over all pixels
   for (int i=0; i< cloud->size(); ++i)
@@ -43,7 +50,7 @@ void ImageBlobExtractor::extract(std::vector<pcl::PointIndices>& cluster_list,
       q_list.clear();
       q_list.push_back(i);
       mask[i] = cluster_id;
-      std::queue<int>::iterator it = q_list.begin();
+      std::list<int>::iterator it = q_list.begin();
 
       // Use bounding box for volumn measurement
       // TODO: is there a better way to determine the volumn?
@@ -54,11 +61,11 @@ void ImageBlobExtractor::extract(std::vector<pcl::PointIndices>& cluster_list,
 
       do{
           // Check the current node
-          PointT p& = cloud->points[*it];
+          T& p = cloud->points[*it];
 
           // Convert linear index to row and column
-          int r = j / cloud->width;
-          int c = j % cloud->width;
+          int r = i / cloud->width;
+          int c = i % cloud->width;
           // The search window is a function of range
           int w = static_cast<int>(floor(f / p.z * search_r));
 
@@ -70,11 +77,12 @@ void ImageBlobExtractor::extract(std::vector<pcl::PointIndices>& cluster_list,
 		  int linear_idx = r_*cloud->height+c_;
 		  //1. boundary check
 		  //2. skip if this pixel is not unprocessed foreground
-		  if (r_>cloud->height || c_>cloud->width ||
+		  if (r_>cloud->height || r_<0 ||
+		      c_>cloud->width  || c_<0 ||
 		      mask[linear_idx] != 1)
 		    continue;
 
-		  PointT q& = cloud->points[linear_idx];
+		  T& q = cloud->points[linear_idx];
 		  if(L2_sqr(q-p) < search_r*search_r)
                     {
 		      // Add this point to Q_list
@@ -101,7 +109,7 @@ void ImageBlobExtractor::extract(std::vector<pcl::PointIndices>& cluster_list,
 	{
 	  pcl::PointIndices pi;
 	  cluster_list.push_back(pi);
-	  cluster_list.back().resize(q_list.size());
+	  cluster_list.back().indices.resize(q_list.size());
 	  std::list<int>::iterator   lit = q_list.begin();
 	  std::vector<int>::iterator vit = cluster_list.back().indices.begin(); 
 	  while(lit != q_list.end())

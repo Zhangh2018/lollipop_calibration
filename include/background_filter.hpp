@@ -1,25 +1,29 @@
 #pragma once
 
-#include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <vector>
+#include <iostream>
 
+template <typename T>
 class ImageFilter
 {
-  typedef pcl::PointXYZ PointT;
-  typedef pcl::PointCloud<PointT> CloudT;
+  typedef typename pcl::PointCloud<T>::Ptr CloudPtr;
 
 public:
-  ImageFilter(float _max_range=10.0f);
+  ImageFilter(float threshold_ = 10.0f);
 
-  void AddBackgroundCloud(CloudT::Ptr bg);
+  void AddBackgroundCloud(CloudPtr bg);
 
-  std::vector<bool>& GetForegroundMask(CloudT::Ptr fg);
+  std::vector<char>& GetForegroundMask(CloudPtr fg);
+
+  // Debugging functions:
+  WriteMaskToStream(std::ostream& os);
 
 private:
-  std::vector<CloudT::Ptr> bg_ptrs;
-  std::vector<bool> mask;
-  std::vector<float> mean;
-  std::vector<float> sigma;
-  int cloud_size;
-  const float max_range;
+  std::vector<CloudPtr> bg_ptrs;
+  std::vector<char> mask;
+  //  std::vector<float> mean;
+  //  std::vector<float> sigma;
+  //  int cloud_size;
+  const float threshold;
 };

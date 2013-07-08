@@ -1,9 +1,21 @@
 
-#include <pcl/point_types.h>
+#pragma once
+
+#include <pcl/point_cloud.h>
+#include <vector>
 
 namespace Morphology
 {
-  void Dilate(std::vector<bool>& binaryImage, std::vector<float>& rangeImage, int width, int height);
+  template <typename T>
+  void Dilate2_5D(pcl::PointCloud<T>& cloud,
+		  std::vector<char>& binaryImage,
+		  float focal_length, float radius);
 
-  void Erode(std::vector<bool>& binaryImage, std::vector<float>& rangeImage, int width, int height);
+  template <typename T>
+  void Erode2_5D(pcl::PointCloud<T>& cloud,
+		 std::vector<char>& binaryImage,
+		 float focal_length, float radius);
+  
 };
+
+#include "imp/morph_operator.cpp"

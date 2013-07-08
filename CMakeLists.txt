@@ -14,7 +14,6 @@ find_package(PCL 1.5 REQUIRED PATHS /usr NO_DEFAULT_PATH)
 
 include_directories(
    ${PROJECT_SOURCE_DIR}/include/
-   ${PROJECT_SOURCE_DIR}/include/impl
    /usr/local/include/yaml-cpp/
    ${CERES_INCLUDES}
    ${PCL_INCLUDE_DIRS}

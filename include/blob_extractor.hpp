@@ -2,8 +2,8 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/PointIndices.h>
-template<typename T>
 
+template<typename T>
 class ImageBlobExtractor
 {
   typedef typename pcl::PointCloud<T>::Ptr CloudPtr;
@@ -27,3 +27,5 @@ private:
   int min_c, max_c;      // [min|max] point count
   CloudPtr cloud;
 };
+
+#include "impl/blob_extractor.cpp"
