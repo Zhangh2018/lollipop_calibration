@@ -6,6 +6,12 @@
 
 // Math util functions to find the vector norm
 template <typename T>
+inline float L2_sqr(T& p, T& q)
+{
+  return (p.x-q.x)*(p.x-q.x)+(p.y-q.y)*(p.y-q.y)+(p.z-q.z)*(p.z-q.z);
+}
+
+template <typename T>
 inline float L2_sqr(T& p)
 {
   return (p.x*p.x+p.y*p.y+p.z*p.z);
@@ -20,7 +26,7 @@ inline float L2_norm(T& p)
 template <typename T>
 ImageBlobExtractor<T>::
 ImageBlobExtractor(float _f, float r, 
-		   int min_volumn, int max_volumn,
+		   float min_volumn, float max_volumn,
 		   int min_count,  int max_count)
   :f(_f), search_r(r), min_v(min_volumn), max_v(max_volumn), 
    min_c(min_count), max_c(max_count)
@@ -42,8 +48,8 @@ void ImageBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list
   // Loop over all pixels
   for (int i=0; i< cloud->size(); ++i)
     {
-      // Skip if it is background
-      if (mask[i]==0)
+      // Skip unless it is unprocessed foreground
+      if (mask[i] != 1)
         continue;
 
       // Starting a new cluster
@@ -56,34 +62,36 @@ void ImageBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list
       // TODO: is there a better way to determine the volumn?
       float min_x, min_y, min_z;
       float max_x, max_y, max_z;
-      min_x = min_y = min_z = -std::numeric_limits<double>::infinity();
-      max_x = max_y = max_z =  std::numeric_limits<double>::infinity();
+      min_x = min_y = min_z =  std::numeric_limits<double>::infinity();
+      max_x = max_y = max_z = -std::numeric_limits<double>::infinity();
 
-      do{
+      while(it != q_list.end())
+	{
           // Check the current node
           T& p = cloud->points[*it];
 
           // Convert linear index to row and column
           int r = i / cloud->width;
           int c = i % cloud->width;
+
           // The search window is a function of range
-          int w = static_cast<int>(floor(f / p.z * search_r));
+          int w = ceil(f / p.z * search_r);
 
 	  // Search within the window
-	  for(int r_ = r+w; r_ >= r-w; --r_)
+	  for(int r_ = r-w; r_ <= r+w; ++r_)
 	    {
-	      for(int c_ = c+w; c_ >=c-w; --c_)
+	      for(int c_ = c-w; c_ <=c+w; ++c_)
 		{
-		  int linear_idx = r_*cloud->height+c_;
+		  int linear_idx = r_*cloud->width+c_;
 		  //1. boundary check
-		  //2. skip if this pixel is not unprocessed foreground
-		  if (r_>cloud->height || r_<0 ||
-		      c_>cloud->width  || c_<0 ||
+		  //2. skip unless this pixel is unprocessed foreground
+		  if (r_>=cloud->height || r_<0 ||
+		      c_>=cloud->width  || c_<0 ||
 		      mask[linear_idx] != 1)
 		    continue;
 
 		  T& q = cloud->points[linear_idx];
-		  if(L2_sqr(q-p) < search_r*search_r)
+		  if(L2_sqr(q, p) < search_r*search_r)
                     {
 		      // Add this point to Q_list
                       q_list.push_back(linear_idx);
@@ -99,7 +107,7 @@ void ImageBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list
 	    }
 	  // Move onto the next index in the Q_list
 	  ++it;
-      }while(it != q_list.end());
+	}//while(it != q_list.end());
       
       // Done flooding this cluster
       // If this cluster meet the size requirement, then add to cluster list
@@ -117,6 +125,9 @@ void ImageBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list
 	      *vit = *lit;
 	      ++vit; ++lit; // for clarity, let's not mix "++" with "*"
 	    }
+
+	  printf("Pixel %d, Cluster %d, volumn= %f, count = %lu\n", i, cluster_id, volumn, q_list.size()); 
+
 	  // Increment cluster_id by 1
 	  ++cluster_id;
 	}

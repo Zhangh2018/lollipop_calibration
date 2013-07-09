@@ -4,8 +4,15 @@
 namespace Morphology
 {
   template <typename T>
-  void Dilate2_5D(pcl::PointCloud<T>& cloud, std::vector<char>& binaryImage,
-		  float f, float radius)
+  inline float L2_sqr(T& p, T& q)
+  {
+    return (p.x-q.x)*(p.x-q.x)+(p.y-q.y)*(p.y-q.y)+(p.z-q.z)*(p.z-q.z);
+  }
+
+  template <typename T>
+  void Erode2_5D(typename pcl::PointCloud<T>::Ptr cloud, 
+		 std::vector<char>& binaryImage,
+		 float f, float radius)
   {
     std::vector<char> temp(binaryImage.size(), 0x01);
 
@@ -26,12 +33,12 @@ namespace Morphology
 	      {
 		for(int l=-pixel_radius; l<=pixel_radius; ++l)
 		  {
-		    int r = j+k;
+		    int r = i+k;
 		    int c = j+l;
 
 		    if(r>=0 && r< cloud->height &&
 		       c>=0 && c< cloud->width  &&
-		       binrayImage[r*cloud->width+c] == 0)
+		       binaryImage[r*cloud->width+c] == 0)
 		      {
 			temp[linear_idx] = 0x00;
 			break_flag = true;
@@ -50,40 +57,47 @@ namespace Morphology
     // The final binary image is AND of the two
     for (int i=0; i < temp.size(); ++i)
       {
-	binrayImage[i] = binaryImage[i] & temp[i];
+	binaryImage[i] = binaryImage[i] & temp[i];
       }
   }
 
 
   template <typename T>
-  void Erode2_5D(pcl::PointCloud<T>& cloud, std::vector<char>& binaryImage,
+  void Dilate2_5D(typename pcl::PointCloud<T>::Ptr cloud, 
+		 std::vector<char>& binaryImage,
 		 float f, float radius)
   {
     std::vector<char> temp(cloud->size(), 0);// start with all zeros
 
-    for(int i=0; i< cloud->height; ++i)
+    for(int i=0; i< cloud->size(); ++i)
       {
-	for(int j=0; j < cloud->width; ++j)
-	  {
-	    int linear_idx = i*cloud->width+j;
-	    
-	    // Skip this pixel if it's 0
-	    if (!binaryImage[linear_idx])
-	      continue;
+	// Skip this pixel if it's 0
+	if (!binaryImage[i])
+	  continue;
 
-	    // If this pixel is 1, then all its neighbors are 1
-	    T& p = cloud->points[linear_idx];
-	    int pixel_radius = floor(f/p.z*radius);
+	int row = i / cloud->width;
+	int col = i % cloud->width;
+	    
+	// If this pixel is 1, then all its neighbors are 1
+	T& p = cloud->points[i];
+	int pixel_radius = floor(f/p.z*radius);
+	for(int j=-pixel_radius; j<=pixel_radius; j++)
+	  {
 	    for(int k=-pixel_radius; k<=pixel_radius; k++)
 	      {
-		for(int l=-pixel_radius; l<=pixel_radius; l++)
-		  {
-		    int r = i+k;
-		    int c = j+l;
-		    if (r>= 0 && r< cloud->height &&
-			c>= 0 && c< cloud->width)
-		      temp[r*cloud->width+c] = 0x01;
-		  }
+		int r = row + j;
+		int c = col + k;
+		int linear_idx = r*cloud->width + c;
+		// 1. Boundary check
+		// 2. Don't double count
+		if (r < 0 || r >= cloud->height || 
+		    c < 0 || c >= cloud->width  ||
+		    binaryImage[linear_idx])
+		  continue;
+		
+		T& q = cloud->points[linear_idx];
+		if (L2_sqr(p, q) < radius*radius)
+		  temp[linear_idx] = 0x01;
 	      }
 	  }
       }

@@ -3,19 +3,19 @@
 
 #include <pcl/point_cloud.h>
 #include <vector>
-
+ 
 namespace Morphology
 {
   template <typename T>
-  void Dilate2_5D(pcl::PointCloud<T>& cloud,
+  void Dilate2_5D(typename pcl::PointCloud<T>::Ptr cloud,
 		  std::vector<char>& binaryImage,
 		  float focal_length, float radius);
 
   template <typename T>
-  void Erode2_5D(pcl::PointCloud<T>& cloud,
+  void Erode2_5D(typename pcl::PointCloud<T>::Ptr cloud,
 		 std::vector<char>& binaryImage,
 		 float focal_length, float radius);
   
 };
 
-#include "imp/morph_operator.cpp"
+#include "impl/morph_operator.cpp"

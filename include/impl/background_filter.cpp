@@ -2,8 +2,8 @@
 #include "background_filter.hpp"
 
 template <typename T>
-ImageFilter<T>::ImageFilter(float _threshold)
-  :threshold(_threshold)
+ImageFilter<T>::ImageFilter(float _threshold, float far, float near)
+  :threshold(_threshold), far_cutoff(far), near_cutoff(near)
 {
 }
 
@@ -15,7 +15,7 @@ void ImageFilter<T>::AddBackgroundCloud(CloudPtr cloud)
 }
 
 template <typename T>
-std::vector<char>& ImageFilter<T>::GetForegroundMask(CloudPtr cloud)
+void ImageFilter<T>::GetForegroundMask(CloudPtr cloud, std::vector<char>& mask)
 {
   // Make sure the size can match
   assert(cloud->size() == bg_ptrs.front()->size());
@@ -24,23 +24,35 @@ std::vector<char>& ImageFilter<T>::GetForegroundMask(CloudPtr cloud)
   mask.resize(cloud->size());
   std::fill(mask.begin(), mask.end(), 0x00);
 
+  int count = 0;
   for (int i=0; i< mask.size(); ++i)
     {
-      T& pb = bg_ptrs.front()->points[i];
+      T& pb = bg_ptrs[0]->points[i];
       T& pf = cloud->points[i];
 
-      if (pf.z < pb.z - threshold)
-	mask[i] = 0x01;
+      if( pf.z > far_cutoff || pf.z < near_cutoff)
+	continue;
+
+      if (pf.z < pb.z - threshold || 
+	  !isnan(pf.z) && isnan(pb.z))
+	{
+	  mask[i] = 0x01;
+	  ++count;
+	}
     }
+  printf("%d/%lu remaining\n", count, cloud->size());
 }
 
+
 template <typename T>
-void ImageFilter<T>::WriteMaskToStream(std::ostream& os)
+void ImageFilter<T>::WriteMaskToStream(std::ostream& os, std::vector<char>& mask)
 {
-  for(int i=0; i < bg_ptrs.front().height; ++i)
+  int height = bg_ptrs.front()->height;
+  int width  = bg_ptrs.front()->width;
+  for(int i=0; i < height; ++i)
     {
-      for(int j=0; j< bg_ptrs.front().width; ++j)
-	os << static_cast<int>(mask[i]) << " ";
+      for(int j=0; j< width; ++j)
+	os << static_cast<int>(mask[i*width+j]) << " ";
 
       os << std::endl;
     }
