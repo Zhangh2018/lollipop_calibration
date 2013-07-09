@@ -6,6 +6,7 @@
 #include "background_filter.hpp"
 #include "morph_operator.hpp"
 #include "blob_extractor.hpp"
+#include "sphere_fitter.hpp"
 
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
@@ -59,7 +60,7 @@ int main(int argc, char** argv)
   img_filter.WriteMaskToStream(ofs, mask);
   ofs.close();
  
- // Extract blobs
+  // Extract blobs
   std::vector<pcl::PointIndices> cluster_list;
 
   printf("Use one pass algorithm\n");
@@ -68,6 +69,41 @@ int main(int argc, char** argv)
   obe.setInputCloud(raw);
   obe.extract(cluster_list, mask);
 
+  // Find the cluster that is most likely to be a ball
+  double cost, best_cost = 1e5;
+  int best_idx = -1;
+  std::vector<Eigen::Vector3d> centers(cluster_list.size());
+  for(int i=0; i< cluster_list.size();++i)
+    {
+      LinearFitter<PointType> lsf(0.1275);
+      lsf.SetInputCloud(raw, cluster_list[i].indices);
+      cost = lsf.ComputeFitCost(centers[i]);
+      std::cout << "Center at "<< centers[i].transpose() <<" with cost = "<< cost<<std::endl;
+      if (cost < best_cost)
+	{
+	  best_cost = cost;
+	  best_idx = i;
+	}
+    }
+
+  NonlinearFitter<PointType> nlsf(0.1275);
+  nlsf.SetInputCloud(raw, cluster_list[best_idx].indices);
+  // Notice this is a different kind of cost, not comparable to linear fit cost
+  cost = nlsf.ComputeFitCost(centers[best_idx]);
+
+  return 0;
+}
+
+/*
+
+
+  PCLStatsFilter<PointType> stats_filter(20,1);
+  stats_filter.setInputCloud(bg);
+  stats_filter.applyFilter(mask);
+
+*/
+
+/*
   // Roughly where the center of each cluster is?
   for(int i=0; i< cluster_list.size(); ++i)
     {
@@ -96,19 +132,5 @@ int main(int argc, char** argv)
       ss << "c" << i << ".pcd" ;
       pcl::io::savePCDFileASCII (ss.str(), *save);
     }
-
-  return 0;
-}
-
-/*
-
-
-  PCLStatsFilter<PointType> stats_filter(20,1);
-  stats_filter.setInputCloud(bg);
-  stats_filter.applyFilter(mask);
-
-*/
-
-/*
 
 */

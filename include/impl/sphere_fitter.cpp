@@ -59,6 +59,7 @@ SetInputCloud(typename pcl::PointCloud<T>::Ptr input,
     }
 
   M = Z*Z.transpose() /indices.size();
+  //  std::cout << "M=" << std::endl<< M << std::endl;
 }
 
 template<typename T> double LinearFitter<T>::
@@ -72,32 +73,30 @@ ComputeFitCost(Eigen::Vector3d& center)
        0.0, 0.0, 0.0, 1.0, 0.0,
       -2.0, 0.0, 0.0, 0.0, 0.0;
 
-  Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> es(M,N);
+  Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> es;
+  es.compute(N, M);
+
+  if (es.info() != Eigen::ComputationInfo::Success)
+    printf("GSAE failed: %d != %d\n", es.info(), Eigen::ComputationInfo::Success);
 
   // Find the min eigen value (in an absolute sense)
-  Eigen::VectorXd eigVal(es.eigenvalues());
-  double min_v = std::abs(eigVal(0));
-  int min_i = 0;
-  for(int i=1; i<5; ++i)
-    {
-      if(std::abs(eigVal(i)) < min_v)
-	{
-	  min_v = std::abs(eigVal(i));
-	  min_i = i;
-	}
-    }
-
+  //  Eigen::VectorXd eigVal(es.eigenvalues());
+  //  std::cout <<"D\n"<< eigVal<<std::endl << "V\n"<< es.eigenvectors()<<std::endl;
+  
   // Then the solution is the column with minimum eigen value
-  Eigen::VectorXd eigVec(es.eigenvectors().col(min_i));
+  Eigen::VectorXd eigVec(es.eigenvectors().col(4));
 
   // Return the found center
   center(0) = -0.5*eigVec(1)/eigVec(0);
   center(1) = -0.5*eigVec(2)/eigVec(0);
   center(2) = -0.5*eigVec(3)/eigVec(0);
   
+  //  std::cout << "V = \n" << eigVec<< std::endl;
   // But this sphere is with unconstraintd Radius:
-  // Assume fixed Radius, then E should be E= A*R^2-(B^2+C^2+D^2)/(4A)
-  eigVec(4) = eigVec(0)*(this->R*this->R-center.squaredNorm());
+  // Assume fixed Radius, then E should be E= (B^2+C^2+D^2)/(4A)-A*R^2
+  eigVec(4) = eigVec(0)*(center.squaredNorm()-this->R*this->R);
+
+  //  std::cout << "V = \n" << eigVec<< std::endl;
   return eigVec.transpose()*M*eigVec;
 }
 
@@ -165,6 +164,8 @@ private:
   double x, y, z;// x, y, z are normalized
 };
 
+double RayCostFunction::R = 0.0;
+
 template<typename T>
 NonlinearFitter<T>::NonlinearFitter(double radius)
   :SphereFitter<T>(radius)
@@ -217,11 +218,13 @@ ComputeFitCost(Eigen::Vector3d& center)
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
 
+  std::cout << summary.BriefReport() << std::endl;
+
   if (summary.termination_type == ceres::FUNCTION_TOLERANCE ||
       summary.termination_type == ceres::GRADIENT_TOLERANCE ||
       summary.termination_type == ceres::PARAMETER_TOLERANCE)
     {
-      std::cout << "Center found at "<< center<<"\n";
+      std::cout << "Center found at "<< center.transpose()<<"\n";
       return summary.final_cost;
     }
   else
