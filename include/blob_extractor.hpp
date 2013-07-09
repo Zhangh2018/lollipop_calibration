@@ -3,6 +3,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/PointIndices.h>
 
+#include <vector>
+#include <list>
+
 template<typename T>
 class ImageBlobExtractor
 {
@@ -28,4 +31,31 @@ private:
   CloudPtr cloud;
 };
 
+template<typename T>
+class OnePassBlobExtractor
+{
+  typedef typename pcl::PointCloud<T>::Ptr CloudPtr;
+public:
+  OnePassBlobExtractor(int width, int height, int min_count,  int max_count,
+		       float min_volumn, float  max_volumn);
+
+  void setInputCloud(CloudPtr cloud);
+
+  void extract(std::vector<pcl::PointIndices>& cluster_list, //output
+	       std::vector<char>& mask); // input
+
+private:
+  int horizontal_scan(int i, char label, std::vector<char>& mask);
+
+  void contour_trace(const int i, char Dir, char label, std::vector<char>& mask);
+  CloudPtr cloud;
+  const int W;
+  const int H;
+  const int min_c, max_c;
+  const float min_v, max_v;
+  std::vector<boost::shared_ptr<std::list<int> > > q_list;
+  char Dir2IdxOffset[8];
+};
+
 #include "impl/blob_extractor.cpp"
+#include "impl/onepass_blob_extractor.cpp"

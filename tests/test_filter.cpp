@@ -62,6 +62,7 @@ int main(int argc, char** argv)
  // Extract blobs
   std::vector<pcl::PointIndices> cluster_list;
 
+  OnePassBlobExtractor<PointType> obe(640, 480, 1e-4, 0.125, 100, 10000);
   ImageBlobExtractor<PointType> ibe(525.0f, 0.06f, 1e-4, 0.125, 100, 100000);
   ibe.setInputCloud(raw);
   ibe.extract(cluster_list, mask);
