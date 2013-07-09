@@ -62,10 +62,11 @@ int main(int argc, char** argv)
  // Extract blobs
   std::vector<pcl::PointIndices> cluster_list;
 
-  OnePassBlobExtractor<PointType> obe(640, 480, 1e-4, 0.125, 100, 10000);
-  ImageBlobExtractor<PointType> ibe(525.0f, 0.06f, 1e-4, 0.125, 100, 100000);
-  ibe.setInputCloud(raw);
-  ibe.extract(cluster_list, mask);
+  printf("Use one pass algorithm\n");
+  OnePassBlobExtractor<PointType> obe(640, 480, 100, 100000, 1e-4, 1e-2);
+  //  ImageBlobExtractor<PointType> ibe(525.0f, 0.06f, 1e-4, 0.125, 100, 100000);
+  obe.setInputCloud(raw);
+  obe.extract(cluster_list, mask);
 
   // Roughly where the center of each cluster is?
   for(int i=0; i< cluster_list.size(); ++i)

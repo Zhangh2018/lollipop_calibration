@@ -13,6 +13,12 @@ OnePassBlobExtractor<T>::OnePassBlobExtractor(int width, int height,
 }
 
 template<typename T>
+void OnePassBlobExtractor<T>::setInputCloud(CloudPtr cld)
+{
+  cloud = cld;
+}
+
+template<typename T>
 void OnePassBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list,
 				      std::vector<char>& mask) // input
 {
@@ -25,34 +31,39 @@ void OnePassBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_li
       switch (P)
 	{
 	case 0:
+	case -1:
 	  break;
 	case 1:
-	  // always start searching from EAST
-	  mask[i] = label++;
-	  boost::shared_ptr<std::list<int> > list_ptr(new std::list<int>);
-	  list_ptr->push_back(i);
-	  q_list.push_back(list_ptr);
-	  contour_trace(i, label, 0, mask);
-	  break;
+	  {
+	    // always start searching from EAST
+	    mask[i] = label;
+	    std::list<int> list;
+	    list.push_back(i);
+	    q_list.push_back(list);
+	    contour_trace(i, 0x04, mask);
+	    ++label;// start a new label
+	    break;
+	  }
 	default:
-	  i = horizontal_scan(i, label, mask);
+	  i = horizontal_scan(i, mask[i], mask);
 	  break;
 	}
     }
 
   // move all to indices list
   cluster_list.reserve(q_list.size());
-  float min_x = 1e5, min_y = 1e5, min_z = 1e5;
-  float max_x =-1e5, max_y =-1e5, max_z =-1e5;
   for (int j=0; j < q_list.size(); ++j)
     {
-      int count = q_list[j]->size();
+      int count = q_list[j].size();
       if (count > min_c && count < max_c)
 	{
-	  std::list<int>::iterator it = q_list[j]->begin();
+	  std::list<int>::iterator it = q_list[j].begin();
 	  pcl::PointIndices pi;
 	  pi.indices.reserve(count);// pre-allocate space
-	  while (it != q_list[j]->end())
+
+	  float min_x = 1e5, min_y = 1e5, min_z = 1e5;
+	  float max_x =-1e5, max_y =-1e5, max_z =-1e5;
+	  while (it != q_list[j].end())
 	    {
 	      T& p = cloud->points[*it];
 	      
@@ -64,12 +75,15 @@ void OnePassBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_li
 	      if(p.x > max_x) max_x = p.x;
 	      if(p.y > max_y) max_y = p.y;
 	      if(p.z > max_z) max_z = p.z;
-	      ++it;
+	      ++it; //move on to the next one
 	    }
 
 	  float volumn = (max_x-min_x)*(max_y-min_y)*(max_z-min_z);
+	  printf("Volumn %d = %f, size=%d \n", j, volumn, count);
 	  if (volumn > min_v && volumn < max_v)
-	    cluster_list.emplace_back(pi);
+	    {
+	      cluster_list.push_back(pi);// TODO:check if move constructor is called
+	    }
 	}
     }
 }
@@ -82,21 +96,17 @@ int OnePassBlobExtractor<T>::horizontal_scan(int i, char label,
     {
       int right = i+1;
   
-      // End of Row
-      if (right % W == 0) 
-	break;
-
-      // Hit the other end of line scan
-      if (mask[right] == label)
+      // End of Row OR Hit the other end of line scan
+      if (right % W == 0 || mask[right] == label || mask[right] == -1)
 	{
-	  i = right;
 	  break;
 	}
 
       // This is internal contour
       if (mask[right] == 0x00)
 	{
-	  contour_trace(i, 0x07, label, mask);
+	  printf("Internal contour\n");
+	  contour_trace(i, 0x00, mask);
 	  break;
 	}
 
@@ -104,7 +114,7 @@ int OnePassBlobExtractor<T>::horizontal_scan(int i, char label,
       if (mask[right] == 0x01)
 	{
 	  mask[right] = label;
-	  q_list[label-2]->push_back(right);
+	  q_list[label-2].push_back(right);
 	  i = right;
 	}
     }
@@ -112,20 +122,28 @@ int OnePassBlobExtractor<T>::horizontal_scan(int i, char label,
 }
 
 template<typename T>
-void OnePassBlobExtractor<T>::contour_trace(const int i, char Dir, char label,
+void OnePassBlobExtractor<T>::contour_trace(const int i, char Dir,
 					    std::vector<char>& mask)
 {
   int j = i;
+  char label = mask[i];
+
   // TODO: boundary check
   while(true)
     {
       int k;
       k = j + Dir2IdxOffset[Dir];
-      while(mask[k] == 0)
+      int count = 0;
+      while(mask[k] < 1 && count < 8)
 	{
-	  Dir = (Dir+1) & 0x07; // same as mod by 8;
+	  mask[k] = 0xff;
+	  Dir = (Dir+0x01) & 0x07; // same as mod by 8;
 	  k = j + Dir2IdxOffset[Dir];
+	  count++;
 	}
+      if(count == 8)
+	break;
+      
       j = k;
 
       // End of the contour
@@ -134,13 +152,14 @@ void OnePassBlobExtractor<T>::contour_trace(const int i, char Dir, char label,
 
       // Copy the label
       mask[j] = label;
-      q_list[label-2]->push_back(j);
+ 
+      q_list[label-2].push_back(j);
 
       // From where to start searching next time?
       // If Dir is 1 3 5 7->Diagonals
       if(Dir & 0x01)
-	Dir = (Dir+6) & 0x07;
+	Dir = (Dir+0x06) & 0x07;
       else
-	Dir = (Dir+7) & 0x07;
+	Dir = (Dir+0x07) & 0x07;
     }
 }

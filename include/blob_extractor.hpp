@@ -47,14 +47,15 @@ public:
 private:
   int horizontal_scan(int i, char label, std::vector<char>& mask);
 
-  void contour_trace(const int i, char Dir, char label, std::vector<char>& mask);
+  // Clockwise(counter-clockwise) trace the external(internal) contour
+  void contour_trace(const int i, char init_dir, std::vector<char>& mask);
   CloudPtr cloud;
   const int W;
   const int H;
   const int min_c, max_c;
   const float min_v, max_v;
-  std::vector<boost::shared_ptr<std::list<int> > > q_list;
-  char Dir2IdxOffset[8];
+  std::vector<std::list<int> > q_list;
+  int Dir2IdxOffset[8];
 };
 
 #include "impl/blob_extractor.cpp"
