@@ -13,6 +13,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <yaml-cpp/yaml.h>
+
 using namespace std;
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
@@ -106,7 +108,7 @@ int main(int argc, char** argv)
 	  for(int i=0; i< cluster_list.size();++i)
 	    {
 	      LinearFitter<PointType> lsf(target_radius);
-	      lsf.SetInputCloud(raw, cluster_list[i].indices);
+	      lsf.SetInputCloud(fg, cluster_list[i].indices);
 	      cost = lsf.ComputeFitCost(centers[i]);
 	      std::cout << "Center at "<< centers[i].transpose() <<" with cost = "<< cost<<std::endl;
 	      if (cost < best_cost)
@@ -118,7 +120,7 @@ int main(int argc, char** argv)
 
 	  // Nonlinear refinement
 	  NonlinearFitter<PointType> nlsf(target_radius);
-	  nlsf.SetInputCloud(raw, cluster_list[best_idx].indices);
+	  nlsf.SetInputCloud(fg, cluster_list[best_idx].indices);
 	  // Notice this is a different kind of cost, not comparable to linear fit cost
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);
 

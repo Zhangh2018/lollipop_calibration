@@ -7,6 +7,7 @@ OnePassBlobExtractor<T>::OnePassBlobExtractor(int width, int height,
 					      float min_V, float max_V)
   :W(width), H(height), min_c(min_C), max_c(max_C), min_v(min_V), max_v(max_V)
 {
+  // 8-direction connectivity: 0 is east(right), 6 is north(up) (->clockwise)
   Dir2IdxOffset[0] =   1; Dir2IdxOffset[1] = W+1; Dir2IdxOffset[2] = W;
   Dir2IdxOffset[3] = W-1; Dir2IdxOffset[4] =  -1; Dir2IdxOffset[5] =-W-1;
   Dir2IdxOffset[6] =-W  ; Dir2IdxOffset[7] =-W+1;
@@ -22,6 +23,10 @@ template<typename T>
 void OnePassBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_list,
 				      std::vector<char>& mask) // input
 {
+  // 0 is for background
+  // 1 is for unprocessed foreground
+  // 2+ are for labeled foreground
+  //-1 is for background that are next to the foreground boundary
   char label = 2;
 
   // start from 2nd row, ends on second last row
@@ -132,7 +137,10 @@ void OnePassBlobExtractor<T>::contour_trace(const int i, char Dir,
   while(true)
     {
       int k;
+      // mark off boundary background pixels
+      // while searching for next connected boundary
       k = j + Dir2IdxOffset[Dir];
+      // count helps prevent a single pixel case (actually should never happen)
       int count = 0;
       while(mask[k] < 1 && count < 8)
 	{

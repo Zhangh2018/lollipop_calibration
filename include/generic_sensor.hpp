@@ -24,18 +24,18 @@ public:
   virtual void InitCeresProblem(ceres::Problem& prob,
 				    std::vector<Eigen::Vector3d>& ldmk) = 0;
 
-  virtual void WriteToStream (std::ostream& os) = 0;
-  virtual void ReadFromStream(std::istream& is) = 0;
+  virtual void AddObservation(int id, std::vector<double>& vec);
+
+  static boost::shared_ptr<Sensor> Create(std::string type, std::string name);
+
+  void SetOrigin(std::vector<double>& vec);
 
 protected:
-  std::string name;
+  const std::string name;
   Eigen::Vector3d    offset; // origin
   Eigen::Quaterniond orient; // short for orientation
 
   std::map<int, Eigen::Vector3d> measure; // short for measurement
-
-  void WriteCommonInfo(std::ostream& os);
-  void ReadCommonInfo (std::istream& is);
 };
 
 class RangeSensor: protected Sensor
@@ -50,8 +50,6 @@ public:
   virtual void InitCeresProblem(ceres::Problem& prob,
 			std::vector<Eigen::Vector3d>& ldmk);
 
-  virtual void WriteToStream (std::ostream& os);
-  virtual void ReadFromStream(std::istream& is);
 };
 
 class Camera: protected Sensor
@@ -66,6 +64,5 @@ public:
   virtual void InitCeresProblem(ceres::Problem& prob,
 			std::vector<Eigen::Vector3d>& ldmk);
 
-  virtual void WriteToStream (std::ostream& os);
-  virtual void ReadFromStream(std::istream& is);
+
 };
