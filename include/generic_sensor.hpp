@@ -45,13 +45,13 @@ public:
 
   RangeSensor(std::istream& is);
 
-  void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk);
+  virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk);
 
-  void InitCeresProblem(ceres::Problem& prob,
+  virtual void InitCeresProblem(ceres::Problem& prob,
 			std::vector<Eigen::Vector3d>& ldmk);
 
-  void WriteToStream (std::ostream& os);
-  void ReadFromStream(std::istream& is);
+  virtual void WriteToStream (std::ostream& os);
+  virtual void ReadFromStream(std::istream& is);
 };
 
 class Camera: protected Sensor
@@ -61,11 +61,11 @@ public:
 
   Camera(std::istream& is);
 
-  void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk);
+  virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk);
 
-  void InitCeresProblem(ceres::Problem& prob,
+  virtual void InitCeresProblem(ceres::Problem& prob,
 			std::vector<Eigen::Vector3d>& ldmk);
 
-  void WriteToStream (std::ostream& os);
-  void ReadFromStream(std::istream& is);
+  virtual void WriteToStream (std::ostream& os);
+  virtual void ReadFromStream(std::istream& is);
 };
