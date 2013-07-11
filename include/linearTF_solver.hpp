@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <Eigen/SVD>
@@ -6,21 +8,16 @@
 class LinearTfSolver
 {
 public:
-  void SetRefPoints(std::vector<Eigen::Vector3d>& ref_points);
+  LinearTfSolver(unsigned int num_pts);
 
-  void SetTgtPoints(std::vector<Eigen::Vector3d>& tgt_points);
+  void AddPointPair(Eigen::Vector3d& ref, Eigen::Vector3d& tgt);
 
-  void EstimateTfSVD(Eigen::Vector3d& t, Eigen::Quaterniond& q);
+  void EstimateTfSVD(double* origin);
 
 private:
-  bool compute3DCentroid(std::vector<Eigen::Vector3d>& cloud, Eigen::Vector4d& centroid);
-
-  bool demeanPointCloud(std::vector<Eigen::Vector3d>& cloud, Eigen::Vector4d& centroid,
-			Eigen::MatrixXd& cloud_out);
-
-
-  Eigen::Vector4d centroid_ref;
-  Eigen::Vector4d centroid_tgt;
-  Eigen::MatrixXd cloud_ref_demean;
-  Eigen::MatrixXd cloud_tgt_demean;
+  unsigned int max_pts, cur_pt;
+  Eigen::MatrixXd cloud_ref;
+  Eigen::MatrixXd cloud_tgt;
 };
+
+#include "impl/linearTF_solver.cpp"

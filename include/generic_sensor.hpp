@@ -1,49 +1,47 @@
 
-
 #pragma once
 
 #include <iostream>
 #include <vector>
+#include <array>
 
-// Forward declarations:
-class Eigen::Vector3d;
-class Eigen::Quaterniond;
-class ceres::Problem;
+#include <ceres/ceres.h>
+#include <Eigen/Core>
 
 // Generic base sensor class
 class Sensor
 {
 public:
-  Sensor(std::string _name="generic"):name(_name){};
-  Sensor(std::istream& is);
+  Sensor(std::string _name, std::string _type):name(_name), type(_type){};
 
-  virtual ~Sensor();
-
+  // Solve the extrinsic as a linear problem -> gives a good initial guess
   virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk)=0;
 
+  // Setup the joint problem as a nonlinear optimization problem
   virtual void InitCeresProblem(ceres::Problem& prob,
-				    std::vector<Eigen::Vector3d>& ldmk) = 0;
-
-  virtual void AddObservation(int id, std::vector<double>& vec);
+				std::vector<Eigen::Vector3d>& ldmk) = 0;
 
   static boost::shared_ptr<Sensor> Create(std::string type, std::string name);
 
   void SetOrigin(std::vector<double>& vec);
 
-protected:
-  const std::string name;
-  Eigen::Vector3d    offset; // origin
-  Eigen::Quaterniond orient; // short for orientation
+  void AddObservation(int id, std::vector<double>& vec);
 
-  std::map<int, Eigen::Vector3d> measure; // short for measurement
+  const std::string GetName(){return name;}
+  const std::string GetType(){return type;}
+  const double* GetOrigin()  {return origin.data();}
+
+  // Variables
+  const std::string name;
+  const std::string type;
+  std::array<double, 7> origin;          // extrinsic: [x, y, z, w, rx, ry, rz]
+  std::map<int, Eigen::Vector3d> measure;// short for measurement
 };
 
-class RangeSensor: protected Sensor
+class RangeSensor: public Sensor
 {
 public:
-  RangeSensor(std::string _name="rs"):Sensor(_name){}
-
-  RangeSensor(std::istream& is);
+  RangeSensor(std::string _name="rs", std::string _type="rs"):Sensor(_name, _type){}
 
   virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk);
 
@@ -52,6 +50,7 @@ public:
 
 };
 
+/*
 class Camera: protected Sensor
 {
 public:
@@ -66,3 +65,6 @@ public:
 
 
 };
+*/
+
+#include "impl/generic_sensor.cpp"

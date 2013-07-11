@@ -1,6 +1,9 @@
 
 #include <yaml-cpp/yaml.h> // for loading config yaml file
 #include <fstream>
+#include <vector>
+
+#include "generic_sensor.hpp"
 
 bool SaveToYaml(std::string file, std::vector<Eigen::Vector3d>& lv,
 		std::vector<boost::shared_ptr<Sensor> >& sv);
@@ -25,53 +28,60 @@ int main(int argc, char** argv)
     {
       YAML::Node node = sensors[i];
 
-      sv[i] = Sensor::Create(si["Type"].as<std::string>(), si["Name"].as<std::string>());
+      std::string type = sensors[i]["Type"].as<std::string>();
+      std::string name = sensors[i]["Name"].as<std::string>();
+
+      std::cout<< "Create sensor of type: "<< type << " and name "<< name<<std::endl;
+      sv[i] = Sensor::Create(type, name);
 
       YAML::Node origin=node["Origin"];
 
       std::vector<double> vec(origin.size());
       for (int j=0; j < origin.size(); ++j)
-	vec[i] = origin[j].as<double>();
+	vec[j] = origin[j].as<double>();
 	
       sv[i]->SetOrigin(vec);
 
       YAML::Node obs = node["Observations"];
+      vec.resize(obs[0].size() -1);
       for (int j=0; j < obs.size(); ++j)
 	{
-	  // obs[i] contains 0: landmark ID; 1-N: actual observations
-	  vec.resize(obs[i].size() -1);
-	  for(int k=1; k< obs[i].size(); k++)
-	    vec[k] = obs[i][k];
+	  // obs[j] contains 0: landmark ID; 1-N: actual observations
+	  YAML::Node obs_j = obs[j];
+	  int id = obs_j[0].as<int>();
+	  for(int k=1; k < obs_j.size(); k++)
+	    vec[k-1] = obs_j[k].as<double>();
 
-	  sv[i]->AddObservation(obs[i][0].as<int>, vec);
+	  sv[i]->AddObservation(id, vec);
 	}
     }
 
   // Then process the landmarks
-  YAML::Node landmarks= config["Landmarks"];
   for (int i=0; i < lv.size(); ++i)
     {
+      // Notice the 1st entry is landmark id:
       // coz Eigen doesn't like undetermined type (unless you explictly type cast it)
       double x, y, z;
-      x = landmarks[i][0].as<double>();
-      y = landmarks[i][1].as<double>();
-      z = landmarks[i][2].as<double>();
+      x = landmarks[i][1].as<double>();
+      y = landmarks[i][2].as<double>();
+      z = landmarks[i][3].as<double>();
       lv[i] << x, y, z;
+
+      std::cout << "Add landmark at ["<<x<<","<<y<<","<<z<<"]"<<std::endl;
     }
 
-
+  
   // Now do the solving part...
   for (int i=0; i < sv.size(); ++i)
     sv[i]->SolveLinearTf(lv);
 
   // Save intermediate result:
   bool status = SaveToYaml("lsqr.yaml", lv, sv);
-
+  
   // Then do the non-linear solving
   ceres::Problem problem;
-  bool fixed = false;
   for (int i=0; i < sv.size(); ++i)
-    sv[i]->InitCeresProblem(problem, lv, fixed);
+    sv[i]->InitCeresProblem(problem, lv);
 
   ceres::Solver::Options options;
   options.max_num_iterations = 25;
@@ -81,12 +91,14 @@ int main(int argc, char** argv)
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
   std::cout << summary.FullReport() << std::endl;
-
+  
   status = SaveToYaml("nlsqr.yaml", lv, sv);
-
+  
   return 0;
 }
 
+// Given the current setting of the problem, save it to a yaml file
+// which can be reloaded for a linear or nonlinear solving session
 bool SaveToYaml(std::string file, std::vector<Eigen::Vector3d>& lv,
 		std::vector<boost::shared_ptr<Sensor> >& sv)
 {
@@ -100,18 +112,19 @@ bool SaveToYaml(std::string file, std::vector<Eigen::Vector3d>& lv,
       out << YAML::Key << "Type" << YAML::Value << sv[i]->GetType();
       out << YAML::Key << "Name" << YAML::Value << sv[i]->GetName();
       out << YAML::Key << "Origin"<< YAML::Value << YAML::Flow << YAML::BeginSeq;
-      out << sv[i].offset(0) << sv[i].offset(1) << sv[i].offset(2);
-      out << sv[i].orient.w()<< sv[i].orient.x()<< sv[i].orient.y()<< sv[i].orient.z()<<YAML::EndSeq;
 
-      out << YAML::Key << "Observations:" << YAML::Value << YAML::BeginSeq;
+      const double* org = sv[i]->GetOrigin();
+      out << org[0] << org[1] << org[2] << org[3] << org[4] << org[5] << org[6] << YAML::EndSeq;
 
-      std::map<int, Eigen::Vector3d>::iterator it = sv[i]->Obs.begin();
-      while (it != sv[i]->Obs.end())
+      out << YAML::Key << "Observations" << YAML::Value << YAML::BeginSeq;
+      std::map<int, Eigen::Vector3d>::iterator it = sv[i]->measure.begin();
+      while (it != sv[i]->measure.end())
 	{
 	  Eigen::Vector3d& v = it->second;
-	  out << YAML::BeginSeq << YAML::Flow << it->first << v(0) << v(1) << v(2) << YAML::EndSeq;
+	  out << YAML::Flow << YAML::BeginSeq << it->first << v(0) << v(1) << v(2) << YAML::EndSeq;
+	  it++;
 	}
-      out << YAML::EndSeq;
+      out << YAML::EndSeq << YAML::EndMap;
     }
 
   out << YAML::EndSeq;
@@ -120,13 +133,12 @@ bool SaveToYaml(std::string file, std::vector<Eigen::Vector3d>& lv,
   for(int i=0; i< lv.size(); ++i)
     {
       Eigen::Vector3d& v = lv[i];
-      out << YAML::BeginSeq << YAML::Flow << v(0) << v(1) << v(2) << YAML::EndSeq;
+      out << YAML::Flow << YAML::BeginSeq << i<< v(0) << v(1) << v(2) << YAML::EndSeq;
     }
 
   out << YAML::EndSeq << YAML::EndMap;
 
-  ofstream os;
-  os.open(file);
+  std::ofstream os(file, std::ofstream::out);
   os << out.c_str();
   os.close();
   return true;

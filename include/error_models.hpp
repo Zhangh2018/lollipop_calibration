@@ -6,7 +6,7 @@
 #include <ceres/rotation.h>
 
 #include <ceres/jet.h>
-#include <iomanip>
+//#include <iomanip>
 
 // Templated range sensor model for use with Ceres.
 // The camera is parameterized using 7 parameters: 4 for rotation+ 3 for translation
