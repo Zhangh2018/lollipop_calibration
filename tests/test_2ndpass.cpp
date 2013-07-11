@@ -43,9 +43,11 @@ int main(int argc, char** argv)
       landmk_vc[j] << static_cast<double>(landmk_nd[j][1].as<double>()),
 	              static_cast<double>(landmk_nd[j][2].as<double>()),
 	              static_cast<double>(landmk_nd[j][3].as<double>());
+      std::cout << "V["<<j<<"]= " << landmk_vc[j].transpose()<<std::endl;
     }
 
   // Project the landmarks to each sensor frame
+  os << "Sensors:" << std::endl;
   for (int i=0; i < sensor_nd.size(); i++)
     {
       const YAML::Node& origin_nd = sensor_nd[i]["Origin"];
@@ -82,21 +84,30 @@ int main(int argc, char** argv)
 	      PCL_ERROR("Failed to load file %s\n", full_path.c_str());
 	      exit(1);
 	    }
+	  else
+	    PCL_WARN("Loaded PCD %s\n", full_path.c_str());
 
 	  // Where is the ball supposed to be at in the sensor frame?
 	  Eigen::Vector3d new_center = q.inverse()*(landmk_vc[j] - t);
-	  std::cout << "Detected Center at ["<< sensor_nd[i]["Observations"][j]<<"]"<<std::endl;
-	  std::cout << "Projected Center at ["<<j <<","<< new_center <<"]"<<std::endl;
+	  double ox = sensor_nd[i]["Observations"][j][1].as<double>();
+	  double oy = sensor_nd[i]["Observations"][j][2].as<double>();
+	  double oz = sensor_nd[i]["Observations"][j][3].as<double>();
+
+	  std::cout << "Detected Center at ["<< ox <<", "<< oy<<", "<< oz <<"]"<<std::endl;
+	  std::cout << "Projected Center at ["<< new_center.transpose() <<"]"<<std::endl;
 
 	  // TODO: Create a mask(inlier list) to select the new ball
 	  int u0 = width /2 + static_cast<int>(new_center(0) / new_center(2) * fl);
 	  int v0 = height/2 + static_cast<int>(new_center(1) / new_center(2) * fl);
 	  int ws = static_cast<int>(target_radius / new_center(2) * fl);
 	  
+	  std::cout << "Search window = "<< ws << std::endl;
+
 	  std::vector<int> inlier_list;
+	  double threshold = 0.1;
 	  for(int u=u0-ws; u<=u0+ws; ++u)
 	    {
-	      for(int v=v0-ws; v0+ws; ++v)
+	      for(int v=v0-ws; v<=v0+ws; ++v)
 		{
 		  if (u<0 || u>=width || v<0 || v>=height)
 		    continue;
@@ -108,11 +119,12 @@ int main(int argc, char** argv)
 		              (p.y-new_center(1))*(p.y-new_center(1)) +
 		              (p.z-new_center(2))*(p.z-new_center(2)))/(target_radius*target_radius);
 		  
-		  if ( abs(1-d) < 0.05 )
+		  if ( d < (1+threshold) && d > (1-threshold) )
 		    inlier_list.push_back(linear_idx);
 		}
 	    }
 
+	  std::cout << inlier_list.size() << " inliers found with threshold of "<< threshold<<std::endl;
 	  // Nonlinear refinement
 	  NonlinearFitter<PointType> nlsf(target_radius);
 	  nlsf.SetInputCloud(cloudp, inlier_list);
