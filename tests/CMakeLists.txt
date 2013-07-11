@@ -11,6 +11,9 @@ target_link_libraries(pipeline ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 add_executable(solveTf test_tfsolver.cpp)
 target_link_libraries(solveTf ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
+add_executable(run2nd test_2ndpass.cpp)
+target_link_libraries(run2nd ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
+
 #add_executable(test_sf test_sf.cpp)
 #target_link_libraries(test_sf ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
