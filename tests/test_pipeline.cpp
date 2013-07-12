@@ -7,18 +7,23 @@
 #include "blob_extractor.hpp"
 #include "sphere_fitter.hpp"
 
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
-
 #include <fstream>
 #include <sstream>
 #include <array>
 
 #include <yaml-cpp/yaml.h>
 
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <boost/thread/thread.hpp>
+
 using namespace std;
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
+
+void showfittedSphere(CloudType::Ptr cloud, double x, double y, double z);
+void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
 
 int main(int argc, char** argv)
 {
@@ -33,12 +38,14 @@ int main(int argc, char** argv)
   // Load the config file
   YAML::Node config = YAML::LoadFile(argv[1]);
   
-  const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
   const double target_radius    = config["target_ball_radius"].as<double>();
-  const float bg_threshold      = config["background_threshold"].as<float>();
-  const float morph_radius      = config["morphological_radius"].as<float>();
+  const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
   const int num_bg              = config["NumBackground"].as<int>();
   const int num_fg              = config["NumForeground"].as<int>();
+  const float bg_threshold      = config["background_threshold"].as<float>();
+  const float near_cutoff       = config["near_cutoff"].as<float>();
+  const float far_cutoff        = config["far_cutoff"].as<float>();
+  const float morph_radius      = config["morphological_radius"].as<float>();
   const double min_volumn       = config["cluster_min_volumn"].as<double>();
   const double max_volumn       = config["cluster_max_volumn"].as<double>();
 
@@ -66,7 +73,7 @@ int main(int argc, char** argv)
 
       // The mask is being used throughout the pipeline
       std::vector<char> mask;
-      ImageFilter<PointType> img_filter(bg_threshold);
+      ImageFilter<PointType> img_filter(bg_threshold, near_cutoff, far_cutoff);
       
       // Load the background models
       for (int j=0; j < num_bg; ++j)
@@ -98,19 +105,30 @@ int main(int argc, char** argv)
 	      PCL_ERROR("Failed to load file %s\n", full_path.c_str());
 	      exit(1);
 	    }
-	  
+	 
+	  PCL_WARN("\nProcessing Sensor[%d], frame[%d] (%s)\n", i, j, filename.c_str()); 
 	  // filter out background:
 	  img_filter.GetForegroundMask(fg, mask);
 
+	  //	  img_filter.WriteMaskToFile("mask.dump", mask);
+	 
 	  // Morphological operations:
 	  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
+
+	  //	  img_filter.WriteMaskToFile("erode.dump", mask);
+
 	  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
+
+	  //	  img_filter.WriteMaskToFile("dilate.dump", mask);
 
 	  // Extract clusters from binaryImage
 	  std::vector<pcl::PointIndices> cluster_list;
 	  OnePassBlobExtractor<PointType> obe(width, height, min_count, max_count, min_volumn, max_volumn);
 	  obe.setInputCloud(fg);
 	  obe.extract(cluster_list, mask);
+
+	  assert(!cluster_list.empty());
+	  //	  debug_save_clusters(fg, cluster_list);
 
 	  // Find the cluster that is most likely to be a ball
 	  double cost, best_cost = 1e5;
@@ -138,6 +156,8 @@ int main(int argc, char** argv)
 	  Eigen::Vector3d& best_ctr = centers[best_idx];
 	  os << "      - ["<<j<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
 	  
+	  //	  showfittedSphere(fg, best_ctr(0), best_ctr(1), best_ctr(2));
+	  
 	  // Save the first sensor's measurement as landmarks
 	  if (i==0)
 	    {
@@ -157,4 +177,56 @@ int main(int argc, char** argv)
 
   os.close();
   return 0;
+}
+
+void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list)
+{
+  for(int i=0; i< cluster_list.size(); ++i)
+    {
+      CloudType::Ptr temp(new CloudType);
+      std::vector<int>& idx = cluster_list[i].indices;
+      temp->width = idx.size();
+      temp->height= 1;
+      temp->points.resize(idx.size());
+
+      for(int j=0; j< idx.size(); ++j)
+	{
+	  temp->points[j] = cloud->points[idx[j]];
+	}
+
+      std::stringstream ss;
+      ss << "db_" << i << ".pcd";
+      pcl::io::savePCDFileASCII(ss.str(), *temp);
+    }
+}
+
+void showfittedSphere(CloudType::Ptr cloud, double x, double y, double z)
+{
+  static pcl::visualization::PCLVisualizer viewer("3D Viewer");
+  static int i=0;
+
+  viewer.setBackgroundColor (0, 0, 0);
+
+  if(i==0)
+    {
+      viewer.addPointCloud<pcl::PointXYZ> (cloud, "sample cloud");
+      viewer.addSphere(pcl::PointXYZ(x, y, z), 0.1275, 1.0, 1.0, 0.0);
+    }
+  else
+    {
+      viewer.updatePointCloud<pcl::PointXYZ>(cloud, "sample cloud");
+      viewer.updateSphere(pcl::PointXYZ(x,y,z), 0.1275, 1.0, 1.0, 0.0);
+    }
+
+  viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+  viewer.addCoordinateSystem (0.05);
+  viewer.initCameraParameters ();
+
+  while(!viewer.wasStopped())
+    {
+      viewer.spinOnce(100);
+      boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+    }
+  viewer.resetStoppedFlag();
+  ++i;
 }

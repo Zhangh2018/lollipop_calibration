@@ -10,8 +10,7 @@ class ImageFilter
   typedef typename pcl::PointCloud<T>::Ptr CloudPtr;
 
 public:
-  ImageFilter(float threshold_ = 10.0f,
-	      float far = 1e2, float near = 1e-2);
+  ImageFilter(float threshold_ = 10.0f, float near = 1e-2, float far = 1e2);
 
   void AddBackgroundCloud(CloudPtr bg);
 
@@ -20,13 +19,14 @@ public:
   // Debugging functions:
   void WriteMaskToStream(std::ostream& os, std::vector<char>& mask);
 
+  void WriteMaskToFile(std::string str, std::vector<char>& mask);
 private:
   std::vector<CloudPtr> bg_ptrs;
   //  std::vector<float> mean;
   //  std::vector<float> sigma;
   //  int cloud_size;
   const float threshold;
-  const float far_cutoff, near_cutoff;
+  const float near_cutoff, far_cutoff;
 };
 
 #include "impl/background_filter.cpp"

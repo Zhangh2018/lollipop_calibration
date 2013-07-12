@@ -1,9 +1,10 @@
 
 #include "background_filter.hpp"
+#include <fstream>
 
 template <typename T>
-ImageFilter<T>::ImageFilter(float _threshold, float far, float near)
-  :threshold(_threshold), far_cutoff(far), near_cutoff(near)
+ImageFilter<T>::ImageFilter(float _threshold, float near, float far)
+  :threshold(_threshold), near_cutoff(near), far_cutoff(far)
 {
 }
 
@@ -56,4 +57,12 @@ void ImageFilter<T>::WriteMaskToStream(std::ostream& os, std::vector<char>& mask
 
       os << std::endl;
     }
+}
+
+template <typename T>
+void ImageFilter<T>::WriteMaskToFile(std::string str, std::vector<char>& mask)
+{
+  std::ofstream os(str);
+  WriteMaskToStream(os, mask);
+  os.close();
 }

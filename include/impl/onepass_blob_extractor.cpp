@@ -84,9 +84,9 @@ void OnePassBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_li
 	    }
 
 	  float volumn = (max_x-min_x)*(max_y-min_y)*(max_z-min_z);
+	  printf("Volumn %d = %f, size=%d \n", j, volumn, count);
 	  if (volumn > min_v && volumn < max_v)
 	    {
-	      printf("Volumn %d = %f, size=%d \n", j, volumn, count);
 	      cluster_list.push_back(pi);// TODO:check if move constructor is called
 	    }
 	}
