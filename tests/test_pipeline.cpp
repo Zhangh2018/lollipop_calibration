@@ -22,7 +22,8 @@ using namespace std;
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
+#define SHOW_FIT   1
 
 void showfittedSphere(CloudType::Ptr cloud, double x, double y, double z);
 void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
@@ -167,7 +168,7 @@ int main(int argc, char** argv)
 	  Eigen::Vector3d& best_ctr = centers[best_idx];
 	  os << "      - ["<<j<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
 	  
-#if DEBUG_MODE
+#if SHOW_FIT
 	  showfittedSphere(fg, best_ctr(0), best_ctr(1), best_ctr(2));
 #endif
 	  
@@ -218,22 +219,22 @@ void showfittedSphere(CloudType::Ptr cloud, double x, double y, double z)
   static pcl::visualization::PCLVisualizer viewer("3D Viewer");
   static int i=0;
 
-  viewer.setBackgroundColor (0, 0, 0);
-
   if(i==0)
     {
       viewer.addPointCloud<pcl::PointXYZ> (cloud, "sample cloud");
       viewer.addSphere(pcl::PointXYZ(x, y, z), 0.1275, 1.0, 1.0, 0.0);
+      viewer.setBackgroundColor (0, 0, 0);
+
+      viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+      viewer.addCoordinateSystem (0.05);
+      viewer.initCameraParameters ();
+      viewer.setCameraPose(0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
     }
   else
     {
       viewer.updatePointCloud<pcl::PointXYZ>(cloud, "sample cloud");
       viewer.updateSphere(pcl::PointXYZ(x,y,z), 0.1275, 1.0, 1.0, 0.0);
     }
-
-  viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
-  viewer.addCoordinateSystem (0.05);
-  viewer.initCameraParameters ();
 
   while(!viewer.wasStopped())
     {
