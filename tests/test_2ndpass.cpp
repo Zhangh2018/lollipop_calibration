@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 {
   if (argc < 3)
     {
-      PCL_ERROR("Usage: %s <solution.yaml> <config.yaml>\n");
+      PCL_ERROR("Usage: %s <solution.yaml> <config.yaml>\n", argv[0]);
       exit(1);
     }
 

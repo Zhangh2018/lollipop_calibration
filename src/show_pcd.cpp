@@ -100,24 +100,29 @@ int main(int argc, char** argv)
   viewer->registerPointPickingCallback(&pointpicking_cb);
   //  viewer->registerKeyboardCallback(keyboardEvent_cb, (void*)&viewer);
   viewer->addCoordinateSystem(0.05);
+  viewer->initCameraParameters ();
+  viewer->setCameraPose(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
 
   Point p;
   // TODO: assume only one object for now
-  for (int i=0; i < config["Objects"].size(); ++i)
+  if(config["Objects"])
     {
-      YAML::Node node = config["Objects"][i];
-      std::string obj_type = node["Type"].as<std::string>();
-      std::cout << "Add object " << obj_type;
-      if (obj_type == "sphere")
+      for (int i=0; i < config["Objects"].size(); ++i)
 	{
-	  p.x = node["Origin"][0].as<float>();
-	  p.y = node["Origin"][1].as<float>();
-	  p.z = node["Origin"][2].as<float>();
-	  std::stringstream ss;
-	  ss << "sphere_" << i;
-	  double radius = node["Radius"].as<double>();
-	  viewer->addSphere(Point(0.0, 0.0, 0.0), radius, ss.str());
-	  std::cout << " at "<<p << " with r="<<radius<<std::endl;
+	  YAML::Node node = config["Objects"][i];
+	  std::string obj_type = node["Type"].as<std::string>();
+	  std::cout << "Add object " << obj_type;
+	  if (obj_type == "sphere")
+	    {
+	      p.x = node["Origin"][0].as<float>();
+	      p.y = node["Origin"][1].as<float>();
+	      p.z = node["Origin"][2].as<float>();
+	      std::stringstream ss;
+	      ss << "sphere_" << i;
+	      double radius = node["Radius"].as<double>();
+	      viewer->addSphere(Point(0.0, 0.0, 0.0), radius, ss.str());
+	      std::cout << " at "<<p << " with r="<<radius<<std::endl;
+	    }
 	}
     }
 
