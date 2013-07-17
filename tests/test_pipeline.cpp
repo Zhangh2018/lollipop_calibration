@@ -22,6 +22,8 @@ using namespace std;
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 
+#define DEBUG_MODE 1
+
 void showfittedSphere(CloudType::Ptr cloud, double x, double y, double z);
 void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
 
@@ -110,16 +112,22 @@ int main(int argc, char** argv)
 	  // filter out background:
 	  img_filter.GetForegroundMask(fg, mask);
 
-	  //	  img_filter.WriteMaskToFile("mask.dump", mask);
+#if DEBUG_MODE
+	  img_filter.WriteMaskToFile("mask.dump", mask);
+#endif
 	 
 	  // Morphological operations:
 	  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
 
-	  //	  img_filter.WriteMaskToFile("erode.dump", mask);
+#if DEBUG_MODE
+	  img_filter.WriteMaskToFile("erode.dump", mask);
+#endif
 
 	  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
 
-	  //	  img_filter.WriteMaskToFile("dilate.dump", mask);
+#if DEBUG_MODE
+	  img_filter.WriteMaskToFile("dilate.dump", mask);
+#endif
 
 	  // Extract clusters from binaryImage
 	  std::vector<pcl::PointIndices> cluster_list;
@@ -128,7 +136,10 @@ int main(int argc, char** argv)
 	  obe.extract(cluster_list, mask);
 
 	  assert(!cluster_list.empty());
-	  //	  debug_save_clusters(fg, cluster_list);
+
+#if DEBUG_MODE
+	  debug_save_clusters(fg, cluster_list);
+#endif
 
 	  // Find the cluster that is most likely to be a ball
 	  double cost, best_cost = 1e5;
@@ -156,7 +167,9 @@ int main(int argc, char** argv)
 	  Eigen::Vector3d& best_ctr = centers[best_idx];
 	  os << "      - ["<<j<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
 	  
-	  //	  showfittedSphere(fg, best_ctr(0), best_ctr(1), best_ctr(2));
+#if DEBUG_MODE
+	  showfittedSphere(fg, best_ctr(0), best_ctr(1), best_ctr(2));
+#endif
 	  
 	  // Save the first sensor's measurement as landmarks
 	  if (i==0)
