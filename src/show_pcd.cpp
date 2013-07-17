@@ -26,6 +26,7 @@ typedef PointCloudColorHandlerCustom<Point> ColorHandler;
 
 // Global variable: viewer
 boost::shared_ptr<PCLVisualizer> viewer;
+std::string glob_prefix;
 
 void printHelpAndExit(char* str)
 {
@@ -77,78 +78,42 @@ void keyboardEvent_cb(const pcl::visualization::KeyboardEvent &event, void* cook
     }
 }
 
-std::string splitPathName(const std::string& str)
+void AddSphereToVisualizer(const YAML::Node& origin_nd,
+			   boost::shared_ptr<PCLVisualizer>& viewer,
+			   double radius, double r, double g, double b,
+			   const std::string prefix    = "",
+			   const Eigen::Vector3f& t    = Eigen::Vector3f::Zero(),
+			   const Eigen::Quaternionf& q = Eigen::Quaternionf::Identity())
 {
-  int f_slash = str.find_last_of("/\\");
-  if (f_slash == std::string::npos)
-    f_slash = -1;
-  int f_dot = str.find_last_of(".");
-  return str.substr(f_slash+1, f_dot);
+  Eigen::Vector3f p;
+  for(int i=0; i < origin_nd.size(); ++i)
+    {
+      const YAML::Node& node = origin_nd[i];
+      float x, y, z; // TODO: for debugging only
+      x = node[0].as<float>();
+      y = node[1].as<float>();
+      z = node[2].as<float>();
+      p << x, y, z;
+      Eigen::Vector3f temp = q*p+t;
+      Point pt(temp(0), temp(1), temp(2));
+      std::stringstream ss;
+      ss << prefix << "sphere_" << i;
+      viewer->addSphere(pt, radius, r, g, b, ss.str());
+      std::cout << " at "<< pt << " with r="<<radius<<std::endl;
+    }
 }
 
-int main(int argc, char** argv)
+void AddObjectToVisualizer(const YAML::Node& obj_nd,
+			   boost::shared_ptr<PCLVisualizer>& viewer,
+			   const std::string prefix    = "",
+			   const Eigen::Vector3f& t    = Eigen::Vector3f::Zero(),
+			   const Eigen::Quaternionf& q = Eigen::Quaternionf::Identity())
 {
-  if(argc<2)
-    printHelpAndExit(argv[0]);
-
-  // Load the display config file
-  YAML::Node config = YAML::LoadFile(argv[1]);
-  const std::string glob_prefix = config["GlobalPathPrefix"].as<std::string>();
-
-  // Set up PCL::Visualizer related variables:
-  viewer = boost::shared_ptr<PCLVisualizer>(new PCLVisualizer(argc, argv, "show_pcd"));
-  viewer->registerPointPickingCallback(&pointpicking_cb);
-  //  viewer->registerKeyboardCallback(keyboardEvent_cb, (void*)&viewer);
-  viewer->addCoordinateSystem(0.05);
-  viewer->initCameraParameters ();
-  viewer->setCameraPose(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
-
-  Point p;
-  // TODO: assume only one object for now
-  if(config["Objects"])
+  for (int i=0; i < obj_nd.size(); ++i)
     {
-      for (int i=0; i < config["Objects"].size(); ++i)
-	{
-	  YAML::Node node = config["Objects"][i];
-	  std::string obj_type = node["Type"].as<std::string>();
-	  std::cout << "Add object " << obj_type;
-	  if (obj_type == "sphere")
-	    {
-	      p.x = node["Origin"][0].as<float>();
-	      p.y = node["Origin"][1].as<float>();
-	      p.z = node["Origin"][2].as<float>();
-	      std::stringstream ss;
-	      ss << "sphere_" << i;
-	      double radius = node["Radius"].as<double>();
-	      viewer->addSphere(Point(0.0, 0.0, 0.0), radius, ss.str());
-	      std::cout << " at "<<p << " with r="<<radius<<std::endl;
-	    }
-	}
-    }
-
-  // Load the PCDs:
-  for (int i=0; i< config["PCDs"].size(); ++i)
-    {
-      Cloud::Ptr cloud(new Cloud), cloud_tf(new Cloud);
-
-      YAML::Node node = config["PCDs"][i];
-      std::string pull_path = glob_prefix + node["Path"].as<std::string>();
-      // Load the point cloud
-      if (pcl::io::loadPCDFile<Point> (pull_path, *cloud) == -1)
-	return -1;
-
-      /*
-	transform and colorize the point cloud:
-      */
-      Eigen::Vector3f offset;
-      offset(0) = node["Origin"][0].as<float>() - p.x;
-      offset(1) = node["Origin"][1].as<float>() - p.y;
-      offset(2) = node["Origin"][2].as<float>() - p.z;
-      Eigen::Quaternionf quat( node["Origin"][3].as<float>(),  node["Origin"][4].as<float>(),
-			       node["Origin"][5].as<float>(),  node["Origin"][6].as<float>());
-      
-      // Transform the point cloud
-      pcl::transformPointCloud(*cloud, *cloud_tf, offset, quat);
+      YAML::Node node = obj_nd[i];
+      std::string obj_type = node["Type"].as<std::string>();
+      std::cout << "Add object " << obj_type;
 
       // Set up a custom color handler
       int r = 255, g = 255, b = 255;
@@ -158,15 +123,114 @@ int main(int argc, char** argv)
 	  g=node["Color"][1].as<int>(); 
 	  b=node["Color"][2].as<int>();
 	}
-      ColorHandler colorH (cloud_tf, r, g, b);
 
-      // Add the point cloud to viewer
-      std::string name = splitPathName(node["Path"].as<std::string>());
-      viewer->addPointCloud<Point> (cloud_tf, colorH, name);
-      PCL_INFO("Add PointCloud: %s with %d points\n", name.c_str(), cloud->size());
-      viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
+      if (obj_type == "sphere") // TODO: Whay passing so many params to function?
+	{
+	  double radius = node["Radius"].as<double>();
+	  AddSphereToVisualizer(node["Origin"], viewer, radius, r, g, b, prefix, t, q);
+	}
     }
+}
 
+void AddPointCloudToVisualizer(const YAML::Node& pcd_nd,
+			       boost::shared_ptr<PCLVisualizer>& viewer,
+			       double r = 255.0, double g= 255.0, double b=255.0,
+			       const Eigen::Vector3f& t    = Eigen::Vector3f::Zero(),
+			       const Eigen::Quaternionf& q = Eigen::Quaternionf::Identity())
+{
+  Cloud::Ptr cloud(new Cloud), cloud_tf(new Cloud);
+  for (int j=0; j< pcd_nd.size(); ++j)
+    {
+      std::string identifier= pcd_nd[j].as<std::string>();
+      std::string pull_path = glob_prefix + identifier;
+      // Load the point cloud
+      if (pcl::io::loadPCDFile<Point> (pull_path, *cloud) == -1)
+	exit(1);
+     
+      // Transform the point cloud
+      pcl::transformPointCloud(*cloud, *cloud_tf, t, q);
+
+      // Set up a custom color handler
+      ColorHandler colorH (cloud_tf, r, g, b);
+      
+      // Add the point cloud to viewer
+      viewer->addPointCloud<Point> (cloud_tf, colorH, identifier);
+      PCL_INFO("Add PointCloud: %s with %d points\n", identifier.c_str(), cloud->size());
+      viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, identifier); 
+    }
+}
+
+void AddSensorToVisualizer(const YAML::Node& sensor_nd,
+			   boost::shared_ptr<PCLVisualizer>& viewer)
+{
+  for (int i=0; i< sensor_nd.size(); ++i)
+    {
+      const YAML::Node& node = sensor_nd[i];
+
+      // Find the sensor Affine transform
+      Eigen::Vector3f offset;
+      offset(0) = node["Origin"][0].as<float>();
+      offset(1) = node["Origin"][1].as<float>();
+      offset(2) = node["Origin"][2].as<float>();
+      Eigen::Quaternionf quat( node["Origin"][3].as<float>(),  node["Origin"][4].as<float>(),
+			       node["Origin"][5].as<float>(),  node["Origin"][6].as<float>());
+
+      double r = 255, g = 255, b = 255;
+      if (node["Color"])
+	{
+	  r=node["Color"][0].as<double>(); 
+	  g=node["Color"][1].as<double>(); 
+	  b=node["Color"][2].as<double>();
+	}
+
+      // Load PCDs
+      if (node["PCDs"])
+	AddPointCloudToVisualizer(node["PCDs"], viewer, r, g, b, offset, quat);
+
+      if (node["Objects"])
+	{
+	  std::string name = node["Name"].as<std::string>();
+	  AddObjectToVisualizer(node["Objects"], viewer, name, offset, quat);
+	}
+    }
+}
+
+int main(int argc, char** argv)
+{
+  if(argc<2)
+    printHelpAndExit(argv[0]);
+
+  // Load the display config file
+  YAML::Node config = YAML::LoadFile(argv[1]);
+  glob_prefix = config["GlobalPathPrefix"].as<std::string>();
+
+  // Set up PCL::Visualizer related variables:
+  viewer = boost::shared_ptr<PCLVisualizer>(new PCLVisualizer(argc, argv, "show_pcd"));
+  viewer->registerPointPickingCallback(&pointpicking_cb);
+  //  viewer->registerKeyboardCallback(keyboardEvent_cb, (void*)&viewer);
+  viewer->addCoordinateSystem(0.05);
+  viewer->initCameraParameters ();
+  viewer->setCameraPose(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+
+  // Load the Sensors:
+  if (config["Sensors"])
+    AddSensorToVisualizer(config["Sensors"], viewer);
+  
+  // Add Object if provided
+  if(config["Objects"])
+    AddObjectToVisualizer(config["Objects"], viewer);
+  
   // Let it run forever
   viewer->spin();
 }
+
+/*
+std::string splitPathName(const std::string& str)
+{
+  int f_slash = str.find_last_of("/\\");
+  if (f_slash == std::string::npos)
+    f_slash = -1;
+  int f_dot = str.find_last_of(".");
+  return str.substr(f_slash+1, f_dot);
+}
+*/
