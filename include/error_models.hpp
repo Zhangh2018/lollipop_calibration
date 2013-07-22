@@ -117,7 +117,67 @@ namespace Euclidean3DError
 			new AutoDiffError(x, y, z));
     else
       return new FixedDiffError(x, y, z);
-  }  
+  }
+
+  
+  class RayError
+  {
+  public:
+    RayError(double px, double py, double pz)
+      :x(px), y(py), z(pz)
+    {
+      r  = std::sqrt(px*px+py*py+pz*pz);// + 1e-5
+      x  = px / r;
+      y  = py / r;
+      z  = pz / r;
+    }
+    
+    template <typename T>
+    bool operator()(const T* const cam_quat, const T* cam_tran,
+		    const T* const center, T* residuals) const
+    {
+      T tx = T(x);
+      T ty = T(y);
+      T tz = T(z);
+      T tr = T(r);
+      T tR = T(this->R);
+
+      T Qp[4];
+      Qp[0] = cam_quat[0];
+      Qp[1] =-cam_quat[1];
+      Qp[2] =-cam_quat[2];
+      Qp[3] =-cam_quat[3];
+
+      T center_w_demean[3];
+      center_w_demean[0] = center[0] - cam_tran[0];
+      center_w_demean[1] = center[1] - cam_tran[1];
+      center_w_demean[2] = center[2] - cam_tran[2];
+
+      // Project the center to camera frame
+      T center_c[3];
+      ceres::QuaternionRotatePoint(Qp, center_w_demean, center_c);
+
+      T p = center_c[0]*tx + center_c[1]*ty + center_c[2]*tz;
+      T yz= ty*center_c[2] - tz*center_c[1];
+      T zx= tz*center_c[0] - tx*center_c[2];
+      T xy= tx*center_c[1] - ty*center_c[0];
+
+      T q2= yz*yz + zx*zx + xy*xy;
+      T q = ceres::sqrt(q2);
+
+      if (q < tR)
+	residuals[0] = p - ceres::sqrt(tR*tR - q2) - tr;
+      else
+	residuals[0] = ceres::sqrt((p-tr) + (q-tr)*(q-tR));
+    }
+    
+    static double R;
+    double x,y,z,r;
+  };
+  double RayError::R = 0.0;
+
 };
+
+#include "impl/rayError_models.cpp"
 
 #endif
