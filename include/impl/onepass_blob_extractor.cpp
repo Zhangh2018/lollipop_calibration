@@ -45,6 +45,7 @@ void OnePassBlobExtractor<T>::extract(std::vector<pcl::PointIndices>& cluster_li
 	    std::list<int> list;
 	    list.push_back(i);
 	    q_list.push_back(list);
+	    std::cout << "Start a new contour"<< std::endl;
 	    contour_trace(i, 0x04, mask);
 	    ++label;// start a new label
 	    break;
@@ -110,7 +111,7 @@ int OnePassBlobExtractor<T>::horizontal_scan(int i, char label,
       // This is internal contour
       if (mask[right] == 0x00)
 	{
-	  //	  printf("Internal contour\n");
+	  printf("Internal contour, i=%d\n", i);
 	  contour_trace(i, 0x00, mask);
 	  break;
 	}
@@ -159,10 +160,12 @@ void OnePassBlobExtractor<T>::contour_trace(const int i, char Dir,
 	break;
 
       // Copy the label
-      mask[j] = label;
- 
-      q_list[label-2].push_back(j);
-
+      if(mask[j] != label)
+	{
+	  mask[j] = label;
+	  q_list[label-2].push_back(j);
+	}
+      
       // From where to start searching next time?
       // If Dir is 1 3 5 7->Diagonals
       if(Dir & 0x01)

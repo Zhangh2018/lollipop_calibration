@@ -72,11 +72,11 @@ int main(int argc, char** argv)
 
   
   // Now do the solving part...
-  for (int i=0; i < sv.size(); ++i)
-    sv[i]->SolveLinearTf(lv);
+  //for (int i=0; i < sv.size(); ++i)
+  //  sv[i]->SolveLinearTf(lv);
 
   // Save intermediate result:
-  bool status = SaveToYaml("lsqr.yaml", lv, sv);
+  bool status;// = SaveToYaml("lsqr.yaml", lv, sv);
   
   // Then do the non-linear solving
   ceres::Problem problem;
@@ -85,6 +85,7 @@ int main(int argc, char** argv)
 
   ceres::Solver::Options options;
   options.max_num_iterations = 25;
+  options.function_tolerance = 1e-10;
   options.minimizer_progress_to_stdout = true;
   options.linear_solver_type = ceres::DENSE_SCHUR;
 
