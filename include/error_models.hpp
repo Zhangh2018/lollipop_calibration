@@ -122,7 +122,7 @@ namespace Euclidean3DError
   class RayAutoError
   {
   public:
-    RayError(double px, double py, double pz)
+    RayAutoError(double px, double py, double pz)
       :x(px), y(py), z(pz)
     {
       r  = std::sqrt(px*px+py*py+pz*pz);// + 1e-5
@@ -175,7 +175,7 @@ namespace Euclidean3DError
     static double R;
     double x,y,z,r;
   };
-  double RayError::R = 0.0;
+  double RayAutoError::R = 0.0;
 
 
   // WARNING: This one optimizes a local quaternion, 
@@ -183,7 +183,7 @@ namespace Euclidean3DError
   class RayCostError:public ceres::SizedCostFunction<1, 4, 3, 3>
   {
   public:
-    RayCostError(double px, double px, double pz)
+    RayCostError(double px, double py, double pz)
     {
       r = std::sqrt(px*px+py*py+pz*pz);
       x = px/r;
@@ -196,6 +196,7 @@ namespace Euclidean3DError
     virtual bool Evaluate(double const* const* params,
 			  double *res, double** jac) const
     {
+      static int i=0;
       // For convenience:
       const double* Q = params[0]; // quaternion
       const double* T = params[1]; // translation
@@ -206,21 +207,21 @@ namespace Euclidean3DError
       double Qw = std::sqrt(1-Q[1]*Q[1]-Q[2]*Q[2]-Q[3]*Q[3]);
       double a2 = 2*Q[1]*Q[1], b2 = 2*Q[2]*Q[2], c2 = 2*Q[3]*Q[3];
       double aw = 2*Q[1]*Qw,   bw = 2*Q[2]*Qw,   cw = 2*Q[3]*Qw;
-      double ab = 2*Q[1]*Q[2], bc = 2*Q[2]*Q[3], ca = 2*Q[3]*Q[0];
+      double ab = 2*Q[1]*Q[2], bc = 2*Q[2]*Q[3], ca = 2*Q[3]*Q[1];
 
-      double m00 = 1-b2-c2, m01 = ab - cw, m02 = ac + bw;
+      double m00 = 1-b2-c2, m01 = ab - cw, m02 = ca + bw;
       double m10 = ab + cw, m11 = 1-a2-c2, m12 = bc - aw;
-      double m20 = ac - bw, m21 = bc + aw, m22 = 1-a2-b2;
+      double m20 = ca - bw, m21 = bc + aw, m22 = 1-a2-b2;
 
       // Transform the centroid in world frame -> camera frame
-      double Xp = O[0] - T[0], Yp = O[1] - T[1], Zp = O[2] - O[2];
+      double Xp = O[0] - T[0], Yp = O[1] - T[1], Zp = O[2] - T[2];
       double X  = m00*Xp + m10*Yp + m20*Zp;
       double Y  = m01*Xp + m11*Yp + m21*Zp;
       double Z  = m02*Xp + m12*Yp + m22*Zp;
       
       // Use the same notations as in the paper
       double p  = X*x + Y*y + Z*z;
-      double q2 = (y*Z-z*Y)*(y*Z-z*Y)+(z*X-x*Z)*(y*Z-z*Y)+(x*Y-y*X)*(x*Y-y*X);
+      double q2 = (y*Z-z*Y)*(y*Z-z*Y)+(z*X-x*Z)*(z*X-x*Z)+(x*Y-y*X)*(x*Y-y*X);
       double q  = std::sqrt(q2);
 
       if( q < this->R)
@@ -257,7 +258,7 @@ namespace Euclidean3DError
 	  double m11_a =-4*Q[1],       m11_b = 0.0,          m11_c =-4*Q[3];
 	  double m12_a =-2*Qw  +a2/Qw, m12_b = 2*Q[3]+ab/Qw, m12_c = 2*Q[2]+ca/Qw;
 
-	  double m20_a = 2*Q[3]+ab/Qw, m20_b =-2*Qw  +b2/Qw, m02_c = 2*Q[1]+bc/Qw;
+	  double m20_a = 2*Q[3]+ab/Qw, m20_b =-2*Qw  +b2/Qw, m20_c = 2*Q[1]+bc/Qw;
 	  double m21_a = 2*Qw  -a2/Qw, m21_b = 2*Q[3]-ab/Qw, m21_c = 2*Q[2]-ca/Qw;
 	  double m22_a =-4*Q[1],       m22_b =-4*Q[2],       m22_c = 0.0;
 
@@ -275,20 +276,23 @@ namespace Euclidean3DError
 	  double Oz_c  = m02_c * Xp + m12_c * Yp + m22_c * Zp;
 
 	  // with respect to quaternion
-	  jac[0][0] = NULL; // fix w (so Q always normalize to 1)
-	  jac[0][1] = E_x * Ox_a + E_y * Oy_a + E_z * Oz_a;
-	  jac[0][2] = E_x * Qx_b + E_y * Oy_b + E_z * Oz_b;
-	  jac[0][3] = E_x * Qx_c + E_y * Oy_c + E_z * Oz_c
+	  jac[0][0] = 0.0; // fix w (so Q always normalize to 1)
+	  jac[0][1] = E_X * Ox_a + E_Y * Oy_a + E_Z * Oz_a;
+	  jac[0][2] = E_X * Ox_b + E_Y * Oy_b + E_Z * Oz_b;
+	  jac[0][3] = E_X * Ox_c + E_Y * Oy_c + E_Z * Oz_c;
 
 	  // with respect to Translation
-	  jac[1][0] = -E_X*m00 - E_Z*m10 - E_Z*m20;
-	  jac[1][1] = -E_X*m01 - E_Z*m11 - E_Z*m21;
-	  jac[1][2] = -E_X*m02 - E_Z*m12 - E_Z*m22;
+	  jac[1][0] = -E_X*m00 - E_Y*m10 - E_Z*m20;
+	  jac[1][1] = -E_X*m01 - E_Y*m11 - E_Z*m21;
+	  jac[1][2] = -E_X*m02 - E_Y*m12 - E_Z*m22;
 
 	  // with respect to sphere's Origin
 	  jac[2][0] =  - jac[1][0];
 	  jac[2][1] =  - jac[1][1];
 	  jac[2][2] =  - jac[1][2];
+
+	  i = i % 216903 + 1;
+	  printf("%d, %u, res=%7.4lf jac=[%7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf\n", i, q < this->R, res[0], jac[0][0], jac[0][1], jac[0][2], jac[0][3], jac[1][0], jac[1][1], jac[1][2], jac[2][0], jac[2][1], jac[2][2]);
 
 	  return true;
 	}

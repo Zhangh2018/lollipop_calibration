@@ -24,7 +24,7 @@
 #include <vector>
 #include <array>
 
-#define SHOW_INLIER   1
+#define SHOW_INLIER   0
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
@@ -50,7 +50,7 @@ int main(int argc, char** argv)
   const YAML::Node& landmk_nd = solved["Landmarks"];
 
   // Set the static variable
-  Euclidean3DError::RayError::R = target_radius;
+  Euclidean3DError::RayCostError::R = target_radius;
 
   // Ceres variables
   ceres::Problem prob;
@@ -151,17 +151,18 @@ int main(int argc, char** argv)
 #if SHOW_INLIER
 	  showInliers(cloudp, inlier_list);
 #endif
-
+	  
 	  // Add the point to the optimization problem
 	  for (int k=0; k < inlier_list.size(); ++k)
 	    {
 	      PointType& p = cloudp->points[inlier_list[k]];
-	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayError,1,4,3,3>(new Euclidean3DError::RayError(p.x, p.y, p.z));
-	      ceres::LossFunction* lf = NULL;
+	      //	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayError,1,4,3,3>(new Euclidean3DError::RayError(p.x, p.y, p.z));
+	      ceres::CostFunction* cf = new Euclidean3DError::RayCostError(p.x, p.y, p.z);
+	      ceres::LossFunction* lf = new ceres::HuberLoss(1.0);
 	      prob.AddResidualBlock(cf, lf, &(ext[3]), &(ext[0]), landmk_vc[j].data());
 	    }
 	}
-      prob.SetParameterization(&(ext[3]), new ceres::QuaternionParameterization);
+      //      prob.SetParameterization(&(ext[3]), new ceres::QuaternionParameterization);
     }
 
   opt.max_num_iterations = 25;
@@ -171,6 +172,7 @@ int main(int argc, char** argv)
 
   ceres::Solve(opt, &prob, &summary);
   std::cout << summary.FullReport() << std::endl;
+
 }
 
 void showInliers(CloudType::ConstPtr cloud, std::vector<int>& inlier_list)
