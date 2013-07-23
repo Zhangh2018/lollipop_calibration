@@ -119,8 +119,7 @@ namespace Euclidean3DError
       return new FixedDiffError(x, y, z);
   }
 
-  
-  class RayError
+  class RayAutoError
   {
   public:
     RayError(double px, double py, double pz)
@@ -177,6 +176,130 @@ namespace Euclidean3DError
     double x,y,z,r;
   };
   double RayError::R = 0.0;
+
+
+  // WARNING: This one optimizes a local quaternion, 
+  // Q.w needs to be re-computed after the optimization
+  class RayCostError:public ceres::SizedCostFunction<1, 4, 3, 3>
+  {
+  public:
+    RayCostError(double px, double px, double pz)
+    {
+      r = std::sqrt(px*px+py*py+pz*pz);
+      x = px/r;
+      y = py/r;
+      z = pz/r;
+    }
+
+    virtual ~RayCostError(){}
+
+    virtual bool Evaluate(double const* const* params,
+			  double *res, double** jac) const
+    {
+      // For convenience:
+      const double* Q = params[0]; // quaternion
+      const double* T = params[1]; // translation
+      const double* O = params[2]; // sphere origin in world frame
+
+      // m -> convert Quaternion to rotation Matrix in row major
+      // Consider fixing w, so Q only has 3 DoF:
+      double Qw = std::sqrt(1-Q[1]*Q[1]-Q[2]*Q[2]-Q[3]*Q[3]);
+      double a2 = 2*Q[1]*Q[1], b2 = 2*Q[2]*Q[2], c2 = 2*Q[3]*Q[3];
+      double aw = 2*Q[1]*Qw,   bw = 2*Q[2]*Qw,   cw = 2*Q[3]*Qw;
+      double ab = 2*Q[1]*Q[2], bc = 2*Q[2]*Q[3], ca = 2*Q[3]*Q[0];
+
+      double m00 = 1-b2-c2, m01 = ab - cw, m02 = ac + bw;
+      double m10 = ab + cw, m11 = 1-a2-c2, m12 = bc - aw;
+      double m20 = ac - bw, m21 = bc + aw, m22 = 1-a2-b2;
+
+      // Transform the centroid in world frame -> camera frame
+      double Xp = O[0] - T[0], Yp = O[1] - T[1], Zp = O[2] - O[2];
+      double X  = m00*Xp + m10*Yp + m20*Zp;
+      double Y  = m01*Xp + m11*Yp + m21*Zp;
+      double Z  = m02*Xp + m12*Yp + m22*Zp;
+      
+      // Use the same notations as in the paper
+      double p  = X*x + Y*y + Z*z;
+      double q2 = (y*Z-z*Y)*(y*Z-z*Y)+(z*X-x*Z)*(y*Z-z*Y)+(x*Y-y*X)*(x*Y-y*X);
+      double q  = std::sqrt(q2);
+
+      if( q < this->R)
+	res[0] = p - std::sqrt(this->R*this->R - q2) - r;
+      else
+	res[0] = std::sqrt((p-r)*(p-r) + (q- this->R)*(q- this->R));
+
+      // TODO: Make sure the memory addresses are valid
+      if(jac && jac[0] && jac[1] && jac[2])
+	{
+	  double E_X, E_Y, E_Z;
+	  if( q < this->R)
+	    {
+	      double denom = std::sqrt(this->R*this->R - q2);
+	      E_X = x + (X - x*p) /denom; 
+	      E_Y = y + (Y - y*p) /denom;
+	      E_Z = z + (Z - z*p) /denom;
+	    }
+	  else
+	    {
+	      double pr = p - r;
+	      double qR = 1 - this->R/q;
+	      E_X = (pr * x + qR *(X - x*p))/res[0];
+	      E_Y = (pr * y + qR *(Y - y*p))/res[0];
+	      E_Z = (pr * z + qR *(Z - z*p))/res[0];
+	    }
+	  
+	  // TODO: how to differentiate with respect Quaternion:
+	  double m00_a = 0.0,          m00_b =-4*Q[2],       m00_c =-4*Q[3];
+	  double m01_a = 2*Q[2]+ca/Qw, m01_b = 2*Q[1]+bc/Qw, m01_c =-2*Qw  +c2/Qw;
+	  double m02_a = 2*Q[3]-ab/Qw, m02_b = 2*Qw  -b2/Qw, m02_c = 2*Q[1]-bc/Qw;
+	  
+	  double m10_a = 2*Q[2]-ca/Qw, m10_b = 2*Q[1]-bc/Qw, m10_c = 2*Qw  -c2/Qw;
+	  double m11_a =-4*Q[1],       m11_b = 0.0,          m11_c =-4*Q[3];
+	  double m12_a =-2*Qw  +a2/Qw, m12_b = 2*Q[3]+ab/Qw, m12_c = 2*Q[2]+ca/Qw;
+
+	  double m20_a = 2*Q[3]+ab/Qw, m20_b =-2*Qw  +b2/Qw, m02_c = 2*Q[1]+bc/Qw;
+	  double m21_a = 2*Qw  -a2/Qw, m21_b = 2*Q[3]-ab/Qw, m21_c = 2*Q[2]-ca/Qw;
+	  double m22_a =-4*Q[1],       m22_b =-4*Q[2],       m22_c = 0.0;
+
+	  // ----------------------------------------
+	  double Ox_a  = m00_a * Xp + m10_a * Yp + m20_a * Zp;
+	  double Oy_a  = m01_a * Xp + m11_a * Yp + m21_a * Zp;
+	  double Oz_a  = m02_a * Xp + m12_a * Yp + m22_a * Zp;
+
+	  double Ox_b  = m00_b * Xp + m10_b * Yp + m20_b * Zp;
+	  double Oy_b  = m01_b * Xp + m11_b * Yp + m21_b * Zp;
+	  double Oz_b  = m02_b * Xp + m12_b * Yp + m22_b * Zp;
+
+	  double Ox_c  = m00_c * Xp + m10_c * Yp + m20_c * Zp;
+	  double Oy_c  = m01_c * Xp + m11_c * Yp + m21_c * Zp;
+	  double Oz_c  = m02_c * Xp + m12_c * Yp + m22_c * Zp;
+
+	  // with respect to quaternion
+	  jac[0][0] = NULL; // fix w (so Q always normalize to 1)
+	  jac[0][1] = E_x * Ox_a + E_y * Oy_a + E_z * Oz_a;
+	  jac[0][2] = E_x * Qx_b + E_y * Oy_b + E_z * Oz_b;
+	  jac[0][3] = E_x * Qx_c + E_y * Oy_c + E_z * Oz_c
+
+	  // with respect to Translation
+	  jac[1][0] = -E_X*m00 - E_Z*m10 - E_Z*m20;
+	  jac[1][1] = -E_X*m01 - E_Z*m11 - E_Z*m21;
+	  jac[1][2] = -E_X*m02 - E_Z*m12 - E_Z*m22;
+
+	  // with respect to sphere's Origin
+	  jac[2][0] =  - jac[1][0];
+	  jac[2][1] =  - jac[1][1];
+	  jac[2][2] =  - jac[1][2];
+
+	  return true;
+	}
+      else
+	return false;
+    }
+    
+    static double R;
+    double x,y,z,r;
+  };
+  double RayCostError::R = 0.0;
 
 };
 
