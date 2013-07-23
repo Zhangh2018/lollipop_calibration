@@ -169,6 +169,8 @@ namespace Euclidean3DError
 	residuals[0] = p - ceres::sqrt(tR*tR - q2) - tr;
       else
 	residuals[0] = ceres::sqrt((p-tr) + (q-tr)*(q-tR));
+
+      return true;
     }
     
     static double R;
@@ -177,7 +179,5 @@ namespace Euclidean3DError
   double RayError::R = 0.0;
 
 };
-
-#include "impl/rayError_models.cpp"
 
 #endif

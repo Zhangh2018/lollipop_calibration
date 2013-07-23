@@ -46,7 +46,7 @@ public:
   virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk);
 
   virtual void InitCeresProblem(ceres::Problem& prob,
-			std::vector<Eigen::Vector3d>& ldmk);
+				std::vector<Eigen::Vector3d>& ldmk);
 
 };
 
