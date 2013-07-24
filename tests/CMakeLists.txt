@@ -20,3 +20,6 @@ target_link_libraries(show_result ${PCL_LIBRARIES} yaml-cpp)
 #add_executable(test_sf test_sf.cpp)
 #target_link_libraries(test_sf ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
+add_executable(raycost test_cost.cpp)
+target_link_libraries(raycost ${CERES_LIBRARIES})
+
