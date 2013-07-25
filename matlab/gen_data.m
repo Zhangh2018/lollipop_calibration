@@ -1,15 +1,15 @@
 function [] = gen_data()
 
 c = [0 0 0 1 0 0 0; ...
-     0 0 3 cos(pi/2) 0 sin(pi/2) 0]; % offset by 1-x and look backwards
+     2 0 3 cos(-pi/4) 0 sin(-pi/4) 0]; % offset by 1-x and look backwards
 
 b = [ 1.0 0.0  1.0;...
-     -1.0 0.0  1.0;...
+     -1.0 0.0  2.0;...
       0.0 1.0  1.0]';
      
 
-nsr = 0.00;
-n   = 50;
+nsr = 0.02;
+n   = 100;
 r   = 0.1275;
 
 fd = fopen('out.txt', 'w');
@@ -25,24 +25,34 @@ for i=1:num_b
     fprintf(fd, '%f %f %f\n', b(1,i), b(2, i), b(3,i));
 end
 
+hdl = {'.r', '.g'};
+figure(1); clf; hold on;
 for i=1:num_c
-   figure(1); clf; hold on;
+
    for j=1:num_b
        p = gen_points(c(i,:), b(:,j), n, nsr, r);
-       
-       plot3(p(1,:), p(2,:), p(3,:), '.r'); 
+     
        for k=1:n
           fprintf(fd, '%f %f %f\n', p(1,k), p(2,k), p(3,k)); 
        end
+       
+       P = proj_points(c(i,:), p);
+       plot3(P(1,:), P(2,:), P(3,:), hdl{i});
+       plot3([c(i,1), b(1,j)], [c(i,2), b(2,j)], [c(i,3), b(3,j)]);
    end
-   axis equal;
-   hold off;
-   pause;
 end
-
+hold off; axis equal
 fclose(fd);
 %plot3(p00(1,:), p00(2,:), p00(3,:), 'b.', p01(1,:), p01(2,:), p01(3,:), 'r.');
 %axis equal
+end
+
+function [P] = proj_points(c, p)
+t = c(1:3)';
+R = q2r(c(4:7));
+
+[~, n] = size(p);
+P = R*p + repmat(t, 1, n);
 end
 
 function [P] = gen_points(c, b, n, nsr, r)
@@ -52,6 +62,7 @@ function [P] = gen_points(c, b, n, nsr, r)
 R   = q2r([c(4) -c(5:7)]);
 b_c = R*(b- c(1:3)');
 
+fprintf('%f %f %f\n', b_c(1), b_c(2), b_c(3));
 % 
 d = norm(b_c);
 

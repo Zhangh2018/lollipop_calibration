@@ -5,11 +5,11 @@
 add_executable(load_yaml test_load_yaml.cpp)
 target_link_libraries(load_yaml yaml-cpp)
 
-add_executable(pipeline test_pipeline.cpp)
-target_link_libraries(pipeline ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
+#add_executable(pipeline test_pipeline.cpp)
+#target_link_libraries(pipeline ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
-add_executable(solveTf test_tfsolver.cpp)
-target_link_libraries(solveTf ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
+#add_executable(solveTf test_tfsolver.cpp)
+#target_link_libraries(solveTf ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
 add_executable(run2nd test_2ndpass.cpp)
 target_link_libraries(run2nd ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)

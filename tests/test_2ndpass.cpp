@@ -25,6 +25,7 @@
 #include <array>
 
 #define SHOW_INLIER   1
+#define PERCENT_RADIUS 0.8 // take points within 80% of radius
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
@@ -121,7 +122,7 @@ int main(int argc, char** argv)
 	  // TODO: Create a mask(inlier list) to select the new ball
 	  int u0 = width /2 + static_cast<int>(new_center(0) / new_center(2) * fl);
 	  int v0 = height/2 + static_cast<int>(new_center(1) / new_center(2) * fl);
-	  double ws = 0.75*target_radius / new_center(2) * fl;
+	  double ws = PERCENT_RADIUS*target_radius / new_center(2) * fl;
 	  
 	  std::cout << "Search window = "<< ws << std::endl;
 
@@ -160,8 +161,8 @@ int main(int argc, char** argv)
 	  for (int k=0; k < inlier_list.size(); ++k)
 	    {
 	      PointType& p = cloudp->points[inlier_list[k]];
-	      //	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayError,1,4,3,3>(new Euclidean3DError::RayError(p.x, p.y, p.z));
-	      ceres::CostFunction* cf = new Euclidean3DError::RayCostError(p.x, p.y, p.z);
+	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayAutoError,1,4,3,3>(new Euclidean3DError::RayAutoError(p.x, p.y, p.z));
+	      //	      ceres::CostFunction* cf = new Euclidean3DError::RayCostError(p.x, p.y, p.z);
 	      ceres::LossFunction* lf = new ceres::HuberLoss(1.0);
 	      prob.AddResidualBlock(cf, lf, &(ext[3]), &(ext[0]), landmk_vc[j].data());
 	    }
@@ -169,14 +170,13 @@ int main(int argc, char** argv)
       //      prob.SetParameterization(&(ext[3]), new ceres::QuaternionParameterization);
     }
 
-  opt.max_num_iterations = 25;
+  opt.max_num_iterations = 100;
   opt.function_tolerance = 1e-10;
   opt.minimizer_progress_to_stdout = true;
   opt.linear_solver_type = ceres::DENSE_SCHUR;
 
   ceres::Solve(opt, &prob, &summary);
   std::cout << summary.FullReport() << std::endl;
-
 }
 
 void showInliers(CloudType::ConstPtr cloud, std::vector<int>& inlier_list)

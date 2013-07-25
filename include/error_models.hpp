@@ -125,19 +125,21 @@ namespace Euclidean3DError
     RayAutoError(double px, double py, double pz)
       :x(px), y(py), z(pz)
     {
-      r  = std::sqrt(px*px+py*py+pz*pz);// + 1e-5
-      x  = px / r;
-      y  = py / r;
-      z  = pz / r;
+      //      r  = std::sqrt(px*px+py*py+pz*pz);// + 1e-5
+      //      x  = px / r;
+      //      y  = py / r;
+      //      z  = pz / r;
     }
     
     template <typename T>
     bool operator()(const T* const cam_quat, const T* cam_tran,
 		    const T* const center, T* residuals) const
     {
-      T tx = T(x);
-      T ty = T(y);
-      T tz = T(z);
+      static int i=0;
+      double r  = std::sqrt(x*x+y*y+z*z);// + 1e-5
+      T tx = T(x/r);
+      T ty = T(y/r);
+      T tz = T(z/r);
       T tr = T(r);
       T tR = T(this->R);
 
@@ -164,16 +166,17 @@ namespace Euclidean3DError
       T q2= yz*yz + zx*zx + xy*xy;
       T q = ceres::sqrt(q2);
 
-      if (q < tR)
-	residuals[0] = p - ceres::sqrt(tR*tR - q2) - tr;
+      if ( q < tR )
+	residuals[0] = p - tr - ceres::sqrt(tR*tR-q2);
       else
-	residuals[0] = ceres::sqrt((p-tr) + (q-tr)*(q-tR));
+	residuals[0] = ceres::sqrt((p-tr)*(p-tr) + (q-tR)*(q-tR));
 
+      //      std::cout << ++i <<" res=" << residuals[0]<< " q=" << q << std::endl;
       return true;
     }
     
     static double R;
-    double x,y,z,r;
+    double x,y,z;
   };
   double RayAutoError::R = 0.0;
 
@@ -292,7 +295,8 @@ namespace Euclidean3DError
 	  jac[2][2] =  - jac[1][2];
 
 	  i++;
-	  printf("%d, %u, res=%7.4lf jac=[%7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf\n", i, q < this->R, res[0], jac[0][0], jac[0][1], jac[0][2], jac[0][3], jac[1][0], jac[1][1], jac[1][2], jac[2][0], jac[2][1], jac[2][2]);
+	  printf("%2d, %u, res=%7.4lf E=[%7.4lf %7.4lf %7.4lf]\n", i, q < this->R, res[0], E_X, E_Y, E_Z);
+	  //	  printf("%d, %u, res=%7.4lf jac=[%7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf\n", i, q < this->R, res[0], jac[0][0], jac[0][1], jac[0][2], jac[0][3], jac[1][0], jac[1][1], jac[1][2], jac[2][0], jac[2][1], jac[2][2]);
 
 	  return true;
 	}
