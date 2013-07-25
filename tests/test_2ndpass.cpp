@@ -24,7 +24,7 @@
 #include <vector>
 #include <array>
 
-#define SHOW_INLIER   0
+#define SHOW_INLIER   1
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
 	  // TODO: Create a mask(inlier list) to select the new ball
 	  int u0 = width /2 + static_cast<int>(new_center(0) / new_center(2) * fl);
 	  int v0 = height/2 + static_cast<int>(new_center(1) / new_center(2) * fl);
-	  int ws = static_cast<int>(target_radius / new_center(2) * fl);
+	  double ws = 0.75*target_radius / new_center(2) * fl;
 	  
 	  std::cout << "Search window = "<< ws << std::endl;
 
@@ -133,7 +133,11 @@ int main(int argc, char** argv)
 		{
 		  if (u<0 || u>=width || v<0 || v>=height)
 		    continue;
-		    
+
+		  // This condition ensures a circular shape
+		  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
+		    continue;
+
 		  int linear_idx = v*width+u;
 		  PointType& p = cloudp->points[linear_idx];
 		  

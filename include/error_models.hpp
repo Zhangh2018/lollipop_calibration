@@ -291,7 +291,7 @@ namespace Euclidean3DError
 	  jac[2][1] =  - jac[1][1];
 	  jac[2][2] =  - jac[1][2];
 
-	  i = i % 216903 + 1;
+	  i++;
 	  printf("%d, %u, res=%7.4lf jac=[%7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf\n", i, q < this->R, res[0], jac[0][0], jac[0][1], jac[0][2], jac[0][3], jac[1][0], jac[1][1], jac[1][2], jac[2][0], jac[2][1], jac[2][2]);
 
 	  return true;

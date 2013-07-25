@@ -38,8 +38,12 @@ int main(int argc, char** argv)
   for (int i=0; i< num_cam; ++i)
     is>>cams[i][0]>>cams[i][1]>>cams[i][2]>>cams[i][3]>>cams[i][4]>>cams[i][5]>>cams[i][6];
 
+  // Read in ball poses:
   for (int i=0; i< num_ball; ++i)
-    is >> balls[i][0] >> balls[i][1] >> balls[i][2];
+    {
+      is >> balls[i][0] >> balls[i][1] >> balls[i][2];
+      printf("Ball at [%lf %lf %lf]\n", balls[i][0], balls[i][1], balls[i][2]);
+    }
 
   double x, y, z;
   for (int i=0; i< num_cam; ++i)
@@ -51,7 +55,7 @@ int main(int argc, char** argv)
 	      is >> x >> y >> z;
 	      ceres::CostFunction* cf = new Euclidean3DError::RayCostError(x,y,z);
 	      ceres::LossFunction* lf = NULL;
-	      prob.AddResidualBlock(cf, lf, &(cams[i][3]), cams[i], balls[j]);
+	      prob.AddResidualBlock(cf, lf, &(cams[i][3]), &(cams[i][0]), balls[j]);
 	    }
 	}
     }

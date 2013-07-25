@@ -120,10 +120,10 @@ int main(int argc, char** argv)
       sz = solved_landmk_nd[i][3].as<double>();
 
       if (i > 0)
-	viewer.updateSphere(pcl::PointXYZ(sx,sy,sz), target_radius, 1.0, 1.0, 0.0, "sphere");
+	viewer.updateSphere(pcl::PointXYZ(sx,sy,sz), target_radius, 1.0, 1.0, 1.0, "sphere");
       else
 	{
-	  viewer.addSphere(pcl::PointXYZ(sx, sy, sz), target_radius, 1.0, 1.0, 0.0, "sphere");
+	  viewer.addSphere(pcl::PointXYZ(sx, sy, sz), target_radius, 1.0, 1.0, 1.0, "sphere");
 	  viewer.addCoordinateSystem (0.05);
 	  viewer.initCameraParameters ();
 	  viewer.resetCameraViewpoint("sphere");
