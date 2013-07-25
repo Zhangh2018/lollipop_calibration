@@ -1,40 +1,45 @@
 function [] = gen_data()
 
-c0 = [0 0 0 1 0 0 0];
-c1 = [0 0 3 cos(pi/2) 0 sin(pi/2) 0]; % offset by 1-x and look backwards
+c = [0 0 0 1 0 0 0; ...
+     0 0 3 cos(pi/2) 0 sin(pi/2) 0]; % offset by 1-x and look backwards
 
-b0 = [ 1.0 0.0  2.0]';
-b1 = [-1.0 0.0  1.0]';
+b = [ 1.0 0.0  1.0;...
+     -1.0 0.0  1.0;...
+      0.0 1.0  1.0]';
+     
 
 nsr = 0.00;
 n   = 50;
 r   = 0.1275;
 
-p00 = gen_points(c0, b0, n, nsr, r);
-p01 = gen_points(c0, b1, n, nsr, r);
-
-p10 = gen_points(c1, b0, n, nsr, r);
-p11 = gen_points(c1, b1, n, nsr, r);
-
 fd = fopen('out.txt', 'w');
 
-fprintf(fd, '2 2 %d\n', n);
-fprintf(fd, '%f %f %f %f %f %f %f\n', c0(1), c0(2), c0(3), c0(4), c0(5), c0(6), c0(7));
-fprintf(fd, '%f %f %f %f %f %f %f\n', c1(1), c1(2), c1(3), c1(4), c1(5), c1(6), c1(7));
-fprintf(fd, '%f %f %f\n', b0(1), b0(2), b0(3));
-fprintf(fd, '%f %f %f\n', b1(1), b1(2), b1(3));
-for i=1:n
-  fprintf(fd, '%f %f %f\n', p00(1,i), p00(2,i), p00(3,i));
+[num_c, ~] = size(c);
+[~, num_b] = size(b);
+fprintf(fd, '%d %d %d\n', num_c, num_b, n);
+
+for i=1:num_c
+    fprintf(fd, '%f %f %f %f %f %f %f\n',c(i,1),c(i,2),c(i,3),c(i,4),c(i,5),c(i,6),c(i,7));
 end
-for i=1:n
-  fprintf(fd, '%f %f %f\n', p01(1,i), p01(2,i), p01(3,i));
+for i=1:num_b
+    fprintf(fd, '%f %f %f\n', b(1,i), b(2, i), b(3,i));
 end
-for i=1:n
-  fprintf(fd, '%f %f %f\n', p10(1,i), p10(2,i), p10(3,i));
+
+for i=1:num_c
+   figure(1); clf; hold on;
+   for j=1:num_b
+       p = gen_points(c(i,:), b(:,j), n, nsr, r);
+       
+       plot3(p(1,:), p(2,:), p(3,:), '.r'); 
+       for k=1:n
+          fprintf(fd, '%f %f %f\n', p(1,k), p(2,k), p(3,k)); 
+       end
+   end
+   axis equal;
+   hold off;
+   pause;
 end
-for i=1:n
-  fprintf(fd, '%f %f %f\n', p11(1,i), p11(2,i), p11(3,i));
-end
+
 fclose(fd);
 %plot3(p00(1,:), p00(2,:), p00(3,:), 'b.', p01(1,:), p01(2,:), p01(3,:), 'r.');
 %axis equal
