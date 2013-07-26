@@ -24,13 +24,19 @@
 #include <vector>
 #include <array>
 
-#define SHOW_INLIER   1
+#define SHOW_INLIER   0
 #define PERCENT_RADIUS 0.8 // take points within 80% of radius
+#define MAX_JACOBIAN_THREADS 2
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 
+void write2file(std::string file, std::vector<std::string>& names, std::vector<std::string>& types,
+		std::vector<std::array<double,7> >& cams,std::vector<Eigen::Vector3d>& balls);
 void showInliers(CloudType::ConstPtr cloud, std::vector<int>& inlier_list);
+void print_results(std::vector<std::array<double,7> >& cams,std::vector<Eigen::Vector3d>& balls);
+
+
 int main(int argc, char** argv)
 {
   if (argc < 3)
@@ -51,7 +57,7 @@ int main(int argc, char** argv)
   const YAML::Node& landmk_nd = solved["Landmarks"];
 
   // Set the static variable
-  Euclidean3DError::RayCostError::R = target_radius;
+  Euclidean3DError::RayAutoError::R = target_radius;
 
   // Ceres variables
   ceres::Problem prob;
@@ -70,8 +76,13 @@ int main(int argc, char** argv)
 
   // Project the landmarks to each sensor frame
   std::vector<std::array<double, 7> > extrinsics(sensor_nd.size());
+  std::vector<std::string> names(sensor_nd.size());
+  std::vector<std::string> types(sensor_nd.size());
   for (int i=0; i < sensor_nd.size(); i++) // Outer loop goes through all sensors
     {
+      types[i] = sensor_nd[i]["Type"].as<std::string>();
+      names[i] = sensor_nd[i]["Name"].as<std::string>();
+
       const YAML::Node& origin_nd = sensor_nd[i]["Origin"];
 
       // convert to t and q
@@ -163,20 +174,26 @@ int main(int argc, char** argv)
 	      PointType& p = cloudp->points[inlier_list[k]];
 	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayAutoError,1,4,3,3>(new Euclidean3DError::RayAutoError(p.x, p.y, p.z));
 	      //	      ceres::CostFunction* cf = new Euclidean3DError::RayCostError(p.x, p.y, p.z);
-	      ceres::LossFunction* lf = new ceres::HuberLoss(1.0);
+	      ceres::LossFunction* lf = NULL;//new ceres::HuberLoss(1.0);
 	      prob.AddResidualBlock(cf, lf, &(ext[3]), &(ext[0]), landmk_vc[j].data());
 	    }
 	}
-      //      prob.SetParameterization(&(ext[3]), new ceres::QuaternionParameterization);
+      prob.SetParameterization(&(ext[3]), new ceres::QuaternionParameterization);
     }
 
   opt.max_num_iterations = 100;
   opt.function_tolerance = 1e-10;
+  opt.num_threads = MAX_JACOBIAN_THREADS;
   opt.minimizer_progress_to_stdout = true;
   opt.linear_solver_type = ceres::DENSE_SCHUR;
 
+  print_results(extrinsics, landmk_vc);
   ceres::Solve(opt, &prob, &summary);
   std::cout << summary.FullReport() << std::endl;
+
+  print_results(extrinsics, landmk_vc);
+  write2file("raysln.yaml", names, types, extrinsics, landmk_vc);
+  return 0;
 }
 
 void showInliers(CloudType::ConstPtr cloud, std::vector<int>& inlier_list)
@@ -233,4 +250,65 @@ void showInliers(CloudType::ConstPtr cloud, std::vector<int>& inlier_list)
       boost::this_thread::sleep(boost::posix_time::microseconds(100000));
     }
   viewer.resetStoppedFlag();
+}
+
+void print_results(std::vector<std::array<double,7> >& cams,
+		   std::vector<Eigen::Vector3d>& balls)
+{
+  for(int i=0; i< cams.size(); i++)
+    {
+      std::array<double,7>& c = cams[i];
+      PCL_WARN("Cam[%d] = [%7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf %7.4lf]\n",
+	       c[0], c[1], c[2], c[3], c[4], c[5], c[6]);
+    }
+
+  for(int j=0; j< balls.size(); ++j)
+    {
+      Eigen::Vector3d& b = balls[j];
+      PCL_WARN("Ball[%d] = [%7.4lf %7.4lf %7.4lf]\n", b(0), b(1), b(2));
+    }
+}
+
+void write2file(std::string file, std::vector<std::string>& names, std::vector<std::string>& types,
+		std::vector<std::array<double,7> >& cams,std::vector<Eigen::Vector3d>& balls)
+{
+  std::ofstream os(file);
+  if (!os.is_open())
+    {
+      PCL_ERROR("Couldn't open file %s\n", file.c_str());
+      return;
+    }
+  
+  // First write all sensor information
+  os << "Sensors:"<<std::endl;
+  for (int i=0; i < cams.size(); ++i)
+    {
+      os << "  - Type: " << types[i] << std::endl;
+      os << "    Name: " << names[i] << std::endl;
+
+      std::array<double,7>& c = cams[i];
+      os << "    Origin: [" <<c[0]<<", "<<c[1]<<", "<<c[2]<<", "<<c[3]<<", "<<c[4]<<", "<<c[5]<<", "<<c[6]<<"]"<<std::endl;
+      os << "    Observations:"<<std::endl;
+      // convert to t and q
+      Eigen::Vector3d t;
+      Eigen::Quaterniond q;
+      
+      t<< c[0], c[1], c[2];
+      q.w() = c[3]; q.x() = c[4]; q.y() = c[5]; q.z() = c[6];
+      for (int j=0; j < balls.size(); ++j)
+	{
+	  Eigen::Vector3d p = q.inverse()*(balls[j] - t);
+	  os << "      - ["<<j<<", "<<p(0)<<", "<<p(1)<<", "<<p(2)<<"]"<<std::endl; 
+	}
+    }
+
+  // Then write out landmark information
+  os << "Landmarks:" << std::endl;
+  for (int j=0; j < balls.size(); ++j)
+    {
+      Eigen::Vector3d& p = balls[j];
+      os << "  - ["<<j<<", "<<p(0)<<", "<<p(1)<<", "<<p(2)<<"]"<<std::endl;
+    }
+
+  os.close();
 }
