@@ -19,6 +19,7 @@ public:
   virtual void SetInputCloud(typename pcl::PointCloud<T>::Ptr input,
 			     std::vector<int>& indices) =0;
   
+  virtual void Clear() = 0;
   // Center can be used as 
   // 1. return value (in linear fitters)
   // 2. initial guess and return value (in nonlinear fitters)
@@ -45,6 +46,7 @@ public:
 
   virtual double ComputeFitCost(Eigen::Vector3d& center);
 
+  virtual void Clear();
 private:
   Eigen::MatrixXd M; // 5x5 matrix
 };
@@ -66,6 +68,8 @@ public:
 			     std::vector<int>& indices);
 
   virtual double ComputeFitCost(Eigen::Vector3d& center);
+
+  virtual void Clear();
 private:
   ceres::Solver::Options options;
   ceres::Problem problem;

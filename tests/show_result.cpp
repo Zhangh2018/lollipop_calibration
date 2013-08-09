@@ -8,6 +8,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_handlers.h>
+#include <pcl/visualization/point_picking_event.h>
 #include <boost/thread/thread.hpp>
 
 // Loading config files
@@ -20,6 +21,40 @@ typedef pcl::visualization::PointCloudColorHandlerCustom<PointType> ColorHandler
 double r[] = {255.0,   0.0,   0.0, 255.0, 255.0,   0.0};
 double g[] = {  0.0, 255.0,   0.0, 255.0,   0.0, 255.0};
 double b[] = {  0.0,   0.0, 255.0,   0.0, 255.0, 255.0};
+pcl::visualization::PCLVisualizer viewer("Result Viewer");
+
+void pointpicking_cb(const pcl::visualization::PointPickingEvent& event)
+{
+  static unsigned char status = 0;
+  static PointType p;
+  if (event.getPointIndex () == -1)
+    {
+      //     PCL_WARN("No point selected\n");
+      return;
+    }
+  std::stringstream ss;
+  if (status <2)
+    {
+      event.getPoint(p.x, p.y, p.z);
+      ss << p;
+      PCL_WARN("First point picked at %s\n", ss.str().c_str());
+      if (status)
+	{
+	  viewer.removeShape("arrow");
+	  viewer.removeText3D("arrow");
+	}
+      status = 2;
+    }
+  else
+    {
+      PointType q;
+      event.getPoint(q.x, q.y, q.z);
+      ss << q;
+      PCL_ERROR("Second point picked at %s\n", ss.str().c_str());
+      viewer.addArrow(q, p, 1.0, 1.0, 1.0, true);
+      status = 1;
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -67,8 +102,8 @@ int main(int argc, char** argv)
     }
 
   // Initialize the visualizer
-  pcl::visualization::PCLVisualizer viewer("Result Viewer");
   viewer.setBackgroundColor (0, 0, 0);
+  viewer.registerPointPickingCallback(&pointpicking_cb);
   viewer.addCoordinateSystem (0.05);
   viewer.initCameraParameters ();
   viewer.setCameraPose(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);

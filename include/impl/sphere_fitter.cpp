@@ -25,6 +25,12 @@ LinearFitter<T>::LinearFitter(double radius)
 }
 
 template<typename T> void LinearFitter<T>::
+Clear()
+{
+  // TODO: reset the matrix
+}
+
+template<typename T> void LinearFitter<T>::
 SetInputCloud(typename pcl::PointCloud<T>::Ptr input)
 {
   Eigen::MatrixXd Z(5, input->size());
@@ -176,17 +182,22 @@ NonlinearFitter<T>::NonlinearFitter(double radius)
   options.linear_solver_type = ceres::DENSE_QR;
 }
 
+template<typename T> void NonlinearFitter<T>::
+Clear()
+{
+  cost_fn.clear();
+}
 
 template<typename T> void NonlinearFitter<T>::
 SetInputCloud(typename pcl::PointCloud<T>::Ptr input)
 {
-  cost_fn.resize(input->size());
-  
+  //  cost_fn.resize(input->size());
+  cost_fn.reserve(cost_fn.size() + input->size());
   for(int i=0; i< input->size(); ++i)
     {
       T& p = input->points[i];
 
-      cost_fn[i] = new RayCostFunction(p.x,p.y,p.z);
+      cost_fn.push_back(new RayCostFunction(p.x,p.y,p.z));
     }
 }
 
@@ -194,13 +205,14 @@ template<typename T> void NonlinearFitter<T>::
 SetInputCloud(typename pcl::PointCloud<T>::Ptr input,
 	      std::vector<int>& indices)
 {
-  cost_fn.resize(indices.size());
-
+  // WARNING: This allow adding more data to it
+  //  cost_fn.resize(input->size());
+  cost_fn.reserve(cost_fn.size() + input->size());
   for(int i=0; i< indices.size(); ++i)
     {
       T& p = input->points[indices[i]];
 
-      cost_fn[i] = new RayCostFunction(p.x,p.y,p.z);
+      cost_fn.push_back(new RayCostFunction(p.x,p.y,p.z));
     }
 }
 

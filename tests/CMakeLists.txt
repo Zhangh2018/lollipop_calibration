@@ -23,3 +23,5 @@ target_link_libraries(show_result ${PCL_LIBRARIES} yaml-cpp)
 add_executable(raycost test_cost.cpp)
 target_link_libraries(raycost ${CERES_LIBRARIES})
 
+add_executable(error_analysis error_analysis.cpp)
+target_link_libraries(error_analysis ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
