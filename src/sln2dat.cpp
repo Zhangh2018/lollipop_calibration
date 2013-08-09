@@ -4,7 +4,7 @@
 
 // For loading config files
 #include <yaml-cpp/yaml.h>
-
+#include <iomanip>
 #include <iostream>
 
 int main(int argc, char** argv)
@@ -15,6 +15,7 @@ int main(int argc, char** argv)
   const YAML::Node& landmk_nd = sln["Landmarks"];
   std::cout << sensor_nd.size() << " " << landmk_nd.size() << std::endl;
 
+  std::cout << std::setprecision(9);
   // Write sensors' origins
   for(int i=0; i < sensor_nd.size(); i++)
     {
