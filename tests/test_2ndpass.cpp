@@ -20,6 +20,7 @@
 #include <boost/thread/thread.hpp>
 
 #include <fstream>
+#include <iomanip>
 
 #include <vector>
 #include <array>
@@ -280,7 +281,7 @@ void write2file(std::string file, std::vector<std::string>& names, std::vector<s
     }
   
   // First write all sensor information
-  os << "Sensors:"<<std::endl;
+  os << "Sensors:"<<std::endl << std::setprecision(9);
   for (int i=0; i < cams.size(); ++i)
     {
       os << "  - Type: " << types[i] << std::endl;
