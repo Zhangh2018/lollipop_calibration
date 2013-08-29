@@ -9,7 +9,7 @@
 // Depending on the type name, create the corresponding sensor type
 boost::shared_ptr<Sensor> Sensor::Create(std::string type, std::string name)
 {
-  if (type == "openni" || type == "swissranger" || type == "rs")
+  if (type == "openni" || type == "swissranger" || type == "rs" || type=="sr")
     {
       return boost::shared_ptr<Sensor>(new RangeSensor(name));
     }
@@ -21,7 +21,7 @@ boost::shared_ptr<Sensor> Sensor::Create(std::string type, std::string name)
   */
   else
     {
-      std::cerr <<"Error: Unknown type of sensor: " << type;
+      std::cerr <<"Error: Unknown type of sensor: " << type <<std::endl;
       exit(1);
     }
 }

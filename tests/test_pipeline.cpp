@@ -23,9 +23,9 @@ using namespace std;
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 
-#define DEBUG_MODE 0
-#define SHOW_FIT   1
-#define USE_NONLINEAR_REFINEMENT 1
+#define DEBUG_MODE 0   // Set 1 to enable saving the morphological masks
+#define SHOW_FIT   0   // Set 1 to display the fitted sphere
+#define USE_NONLINEAR_REFINEMENT 1 // Set 1 to use nonlinear refinement for sphere fitting
 
 void showfittedSphere(CloudType::ConstPtr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff);
 void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
@@ -46,7 +46,6 @@ int main(int argc, char** argv)
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
   const int num_bg              = config["NumBackground"].as<int>();
-  const int num_fg              = config["NumForeground"].as<int>();
   const float bg_threshold      = config["background_threshold"].as<float>();
   const float near_cutoff       = config["near_cutoff"].as<float>();
   const float far_cutoff        = config["far_cutoff"].as<float>();
@@ -80,11 +79,12 @@ int main(int argc, char** argv)
       std::vector<char> mask;
       ImageFilter<PointType> img_filter(bg_threshold, near_cutoff, far_cutoff);
       
+      const YAML::Node& pcd_node = sensors[i]["PCDs"];
       // Load the background models
       for (int j=0; j < num_bg; ++j)
 	{
 	  CloudType::Ptr bg (new CloudType);
-	  std::string filename = sensors[i]["PCDs"][j].as<std::string>();
+	  std::string filename = pcd_node[j].as<std::string>();
 	  
 	  std::string full_path= glob_prefix + filename;
 	  if (pcl::io::loadPCDFile<PointType> (full_path, *bg) == -1)
@@ -99,11 +99,12 @@ int main(int argc, char** argv)
       // 1. Subtract background
       // 2. Apply morphological operator to remove isolate each cluster
       // 3. Find the center of the sphere from pointcloud
+      const int num_fg = pcd_node.size() - num_bg;
       for (int j=0; j < num_fg; ++j)
 	{
 	  CloudType::Ptr fg(new CloudType);
 	  
-	  std::string filename = sensors[i]["PCDs"][j+num_bg].as<std::string>();
+	  std::string filename = pcd_node[j+num_bg].as<std::string>();
 	  std::string full_path= glob_prefix + filename;
 	  if (pcl::io::loadPCDFile<PointType> (full_path, *fg) == -1)
 	    {

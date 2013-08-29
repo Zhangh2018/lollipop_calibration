@@ -61,14 +61,14 @@ int main(int argc, char** argv)
   // TODO: add more command line options
   if (argc < 3)
     {
-      PCL_ERROR("Usage: %s <solution.yaml> <problem.yaml>\n", argv[0]);
+      PCL_ERROR("Usage: %s <config.yaml> <solution.yaml>\n", argv[0]);
       exit(1);
     }
 
   std::ofstream os;
 
-  YAML::Node solved = YAML::LoadFile(argv[1]);
-  YAML::Node config = YAML::LoadFile(argv[2]);
+  YAML::Node config = YAML::LoadFile(argv[1]);
+  YAML::Node solved = YAML::LoadFile(argv[2]);
  
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();

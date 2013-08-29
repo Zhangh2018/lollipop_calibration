@@ -27,6 +27,7 @@
 
 #define SHOW_INLIER   0
 #define PERCENT_RADIUS 0.8 // take points within 80% of radius
+#define INLIER_THRESHOLD 0.99 // Percent error (r/R) allowed to be used as inlier 
 #define MAX_JACOBIAN_THREADS 2
 
 typedef pcl::PointXYZ PointType;
@@ -42,12 +43,12 @@ int main(int argc, char** argv)
 {
   if (argc < 3)
     {
-      PCL_ERROR("Usage: %s <solution.yaml> <config.yaml>\n", argv[0]);
+      PCL_ERROR("Usage: %s <config.yaml> <solution.yaml>\n", argv[0]);
       exit(1);
     }
 
-  YAML::Node solved = YAML::LoadFile(argv[1]);
-  YAML::Node config = YAML::LoadFile(argv[2]);
+  YAML::Node config = YAML::LoadFile(argv[1]);
+  YAML::Node solved = YAML::LoadFile(argv[2]);
 
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
@@ -139,7 +140,6 @@ int main(int argc, char** argv)
 	  std::cout << "Search window = "<< ws << std::endl;
 
 	  std::vector<int> inlier_list;
-	  double threshold = 0.1;
 	  for(int u=u0-ws; u<=u0+ws; ++u)
 	    {
 	      for(int v=v0-ws; v<=v0+ws; ++v)
@@ -158,12 +158,15 @@ int main(int argc, char** argv)
 		              (p.y-new_center(1))*(p.y-new_center(1)) +
 		              (p.z-new_center(2))*(p.z-new_center(2)))/(target_radius*target_radius);
 		  
-		  if ( d < (1+threshold) && d > (1-threshold) )
+		  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
 		    inlier_list.push_back(linear_idx);
 		}
 	    }
 
-	  std::cout << inlier_list.size() << " inliers found with threshold of "<< threshold<<std::endl;
+	  std::cout << inlier_list.size() << " inliers found with threshold of "<< INLIER_THRESHOLD <<std::endl;
+
+	  // The inlier number has to be greater than 0
+	  assert(inlier_list.size() > 0);
 
 #if SHOW_INLIER
 	  showInliers(cloudp, inlier_list);

@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 {
   if (argc < 2)
     {
-      printf("Usage: %s <config.yaml>\n", argv[0]);
+      printf("Usage: %s <problem.yaml>\n", argv[0]);
       exit(1);
     }
 
