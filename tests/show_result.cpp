@@ -72,13 +72,14 @@ int main(int argc, char** argv)
  
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
-  const int num_bg              = config["NumBackground"].as<int>();
-  const int num_fg              = config["NumForeground"].as<int>();
 
   const YAML::Node& solved_sensor_nd = solved["Sensors"];
   const YAML::Node& solved_landmk_nd = solved["Landmarks"];
 
   const YAML::Node& config_sensor_nd = config["Sensors"];
+
+  const int num_bg = config["NumBackground"].as<int>();
+  const int num_fg = config_sensor_nd[0]["PCDs"].size() - num_bg;
 
   // Fill in the sensor origins, so pointclouds can be transformed to a common frame
   const int num_sensors = solved_sensor_nd.size();
