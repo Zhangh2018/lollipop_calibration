@@ -25,7 +25,7 @@ typedef pcl::PointCloud<PointType> CloudType;
 
 #define DEBUG_MODE 0   // Set 1 to enable saving the morphological masks
 #define SHOW_FIT   0   // Set 1 to display the fitted sphere
-#define USE_NONLINEAR_REFINEMENT 1 // Set 1 to use nonlinear refinement for sphere fitting
+#define USE_NONLINEAR_REFINEMENT 0 // Set 1 to use nonlinear refinement for sphere fitting
 
 void showfittedSphere(CloudType::ConstPtr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff);
 void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
@@ -115,23 +115,9 @@ int main(int argc, char** argv)
 	  PCL_WARN("\nProcessing Sensor[%d], frame[%d] (%s)\n", i, j, filename.c_str()); 
 	  // filter out background:
 	  img_filter.GetForegroundMask(fg, mask);
-
-#if DEBUG_MODE
-	  img_filter.WriteMaskToFile("mask.dump", mask);
-#endif
-	 
 	  // Morphological operations:
 	  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
-
-#if DEBUG_MODE
-	  img_filter.WriteMaskToFile("erode.dump", mask);
-#endif
-
 	  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
-
-#if DEBUG_MODE
-	  img_filter.WriteMaskToFile("dilate.dump", mask);
-#endif
 
 	  // Extract clusters from binaryImage
 	  std::vector<pcl::PointIndices> cluster_list;
@@ -140,10 +126,6 @@ int main(int argc, char** argv)
 	  obe.extract(cluster_list, mask);
 
 	  assert(!cluster_list.empty());
-
-#if DEBUG_MODE
-	  debug_save_clusters(fg, cluster_list);
-#endif
 
 	  // Find the cluster that is most likely to be a ball
 	  double cost, best_cost = 1e5;
@@ -173,13 +155,7 @@ int main(int argc, char** argv)
 	  Eigen::Vector3d& best_ctr = centers[best_idx];
 	  os << "      - ["<<j<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
 	  
-#if SHOW_FIT
-	  pcl::ModelCoefficients coeff;
-	  coeff.values.push_back(best_ctr(0)); 	  coeff.values.push_back(best_ctr(1)); 
-	  coeff.values.push_back(best_ctr(2));	  coeff.values.push_back(target_radius);   
-	  showfittedSphere(fg, cluster_list[best_idx], coeff);
-#endif
-	  
+  
 	  // Save the first sensor's measurement as landmarks
 	  if (i==0)
 	    {
