@@ -1,6 +1,3 @@
-/*
-  Test the processing pipeline
- */
 
 #include "background_filter.hpp"
 #include "morph_operator.hpp"
@@ -21,55 +18,11 @@ using namespace std;
 typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 
-#define DEBUG_MODE 0   // Set 1 to enable saving the morphological masks
-#define SHOW_FIT   0   // Set 1 to display the fitted sphere
-#define USE_NONLINEAR_REFINEMENT 1 // Set 1 to use nonlinear refinement for sphere fitting
-
-//void showfittedSphere(CloudType::ConstPtr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff);
-//void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
-
-void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndices& inliers,
-		      const int width, const int height, const double fl, const double target_radius)
+int main()
 {
-  int u0 = width /2 + static_cast<int>(ctr(0) / ctr(2) * fl);
-  int v0 = height/2 + static_cast<int>(ctr(1) / ctr(2) * fl);
-  int ws = abs(2*target_radius / ctr(2) * fl);
- 
-  printf("Search window = %d, centered at <%d, %d>\n", ws, u0, v0);
-
-  //  std::vector<int> inlier_list;
-  for(int u=u0-ws; u<=u0+ws; ++u)
+  if (argc< 4)
     {
-      for(int v=v0-ws; v<=v0+ws; ++v)
-	{
-	  if (u<0 || u>=width || v<0 || v>=height)
-	    continue;
-
-	  // This condition ensures a circular shape
-	  //	  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
-	  //	    continue;
-
-	  int linear_idx = v*width+u;
-	  PointType& p = cloudp->points[linear_idx];
-	  
-	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
-		      (p.y-ctr(1))*(p.y-ctr(1)) +
-		      (p.z-ctr(2))*(p.z-ctr(2)))/(target_radius*target_radius);
-#define INLIER_THRESHOLD 0.99	  
-	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
-     
-	    inliers.indices.push_back(linear_idx);
-	  //	  printf("add new inlier\n");
-	}
-    }
-}
-
-
-int main(int argc, char** argv)
-{
-  if (argc< 3)
-    {
-      printf("Usage: %s <config.yaml> <output.yaml>\n", argv[0]);
+      printf("Usage: %s <config.yaml> <in_solution.yaml> <out_solution.yaml>\n", argv[0]);
       return -1;
     }
   // Open the output file
@@ -182,17 +135,8 @@ int main(int argc, char** argv)
 #if USE_NONLINEAR_REFINEMENT
 	  // Nonlinear refinement
 	  NonlinearFitter<PointType> nlsf(target_radius);
-	  nlsf.Clear();
 	  nlsf.SetInputCloud(fg, cluster_list[best_idx].indices);
 	  // Notice this is a different kind of cost, not comparable to linear fit cost
-	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-
-	  pcl::PointIndices inlier_idx;
-	  //	  remask_inliers_ellipse(centers[best_idx], width, height, -fl, target_radius, inlier_idx);
-	  remask_inliers(fg, centers[best_idx], inlier_idx, width, height, -fl, target_radius);
-	  
-	  nlsf.Clear();//reset the cost function
-	  nlsf.SetInputCloud(fg, inlier_idx.indices);
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);
 #endif
 
@@ -220,87 +164,3 @@ int main(int argc, char** argv)
   os.close();
   return 0;
 }
-
-void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list)
-{
-  for(int i=0; i< cluster_list.size(); ++i)
-    {
-      CloudType::Ptr temp(new CloudType);
-      std::vector<int>& idx = cluster_list[i].indices;
-      temp->width = idx.size();
-      temp->height= 1;
-      temp->points.resize(idx.size());
-
-      for(int j=0; j< idx.size(); ++j)
-	{
-	  temp->points[j] = cloud->points[idx[j]];
-	}
-
-      std::stringstream ss;
-      ss << "db_" << i << ".pcd";
-      pcl::io::savePCDFileASCII(ss.str(), *temp);
-    }
-}
-/*
-void showfittedSphere(CloudType::ConstPtr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff)
-{
-  static pcl::visualization::PCLVisualizer viewer("3D Viewer");
-  static bool first_time = true;
-
-  CloudType::Ptr inlier_cloud(new CloudType), outlier_cloud(new CloudType);
-
-  std::sort(pi.indices.begin(), pi.indices.end());
-
-  // Filter points:
-  inlier_cloud->points.reserve(pi.indices.size());
-  outlier_cloud->points.reserve(cloud->size() - pi.indices.size());
-  for(int i=0, j=0; i < cloud->points.size(); ++i)
-    {
-      if (i == pi.indices[j])
-	{
-	  inlier_cloud->points.push_back(cloud->points[i]);
-	  ++j;
-	}
-      else
-	outlier_cloud->points.push_back(cloud->points[i]);
-    }
-
-  // Set up a custom color handler
-  pcl::visualization::PointCloudColorHandlerCustom<PointType> outlier_handler(outlier_cloud,   0, 255, 0);
-  pcl::visualization::PointCloudColorHandlerCustom<PointType>  inlier_handler( inlier_cloud, 255,   0, 0);
-  
-  if(first_time)
-    {
-      viewer.addPointCloud<PointType> (inlier_cloud, inlier_handler, "inlier_cloud");
-      viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "inlier_cloud");
-      viewer.addPointCloud<PointType> (outlier_cloud, outlier_handler, "outlier_cloud");
-      viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "outlier_cloud");
-
-      //     viewer.addSphere(pcl::PointXYZ(x, y, z), 0.1275, 1.0, 1.0, 0.0);
-      viewer.addSphere(coeff, "sphere");
-  
-      viewer.setBackgroundColor (0, 0, 0);
-
-      viewer.addCoordinateSystem (0.05);
-      viewer.initCameraParameters ();
-      viewer.setCameraPose(0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
-
-      first_time = false;
-    }
-  else
-    {
-      viewer.updatePointCloud<pcl::PointXYZ>(inlier_cloud, inlier_handler, "inlier_cloud");
-      viewer.updatePointCloud<pcl::PointXYZ>(outlier_cloud, outlier_handler, "outlier_cloud");
-      //           viewer.updateSphere(pcl::PointXYZ(x,y,z), 0.1275, 1.0, 1.0, 0.0);
-      viewer.removeShape("sphere");
-      viewer.addSphere(coeff, "sphere");
-    }
-
-  while(!viewer.wasStopped())
-    {
-      viewer.spinOnce(100);
-      boost::this_thread::sleep(boost::posix_time::microseconds(100000));
-    }
-  viewer.resetStoppedFlag();
-}
-*/

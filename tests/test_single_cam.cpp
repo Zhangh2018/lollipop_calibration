@@ -45,14 +45,14 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void
 void morph_open(CloudType::Ptr fg, ImageFilter<PointType>& img_filter,
 		std::vector<char>& mask, float fl, float morph_radius)
 {
-#if 0
+#if 1
   img_filter.WriteMaskToFile("mask.dump", mask);
 #endif
   
   // Morphological operations:
   Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
   
-#if 0
+#if 1
   img_filter.WriteMaskToFile("erode.dump", mask);
 #endif
   
@@ -115,7 +115,7 @@ void showfittedSphere(CloudType::Ptr cloud, pcl::PointIndices& pi, pcl::ModelCoe
 }
 
 void remask_inliers_ellipse(Eigen::Vector3d& ctr, const int width, const int height, 
-		      const double fl, const double target_radius, pcl::PointIndices& inliers)
+			    const double fl, const double target_radius, pcl::PointIndices& inliers)
 {
   double d = ctr.norm();
   double k2= target_radius*target_radius/(d*d-target_radius*target_radius);
@@ -155,7 +155,7 @@ void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndic
 {
   int u0 = width /2 + static_cast<int>(ctr(0) / ctr(2) * fl);
   int v0 = height/2 + static_cast<int>(ctr(1) / ctr(2) * fl);
-  int ws = abs(target_radius / ctr(2) * fl);
+  int ws = abs(2*target_radius / ctr(2) * fl);
  
   printf("Search window = %d, centered at <%d, %d>\n", ws, u0, v0);
 
@@ -168,8 +168,8 @@ void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndic
 	    continue;
 
 	  // This condition ensures a circular shape
-	  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
-	    continue;
+	  //	  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
+	  //	    continue;
 
 	  int linear_idx = v*width+u;
 	  PointType& p = cloudp->points[linear_idx];
@@ -177,7 +177,7 @@ void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndic
 	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
 		      (p.y-ctr(1))*(p.y-ctr(1)) +
 		      (p.z-ctr(2))*(p.z-ctr(2)))/(target_radius*target_radius);
-#define INLIER_THRESHOLD 0.5		  
+#define INLIER_THRESHOLD 0.99	  
 	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
      
 	    inliers.indices.push_back(linear_idx);
@@ -314,14 +314,15 @@ int main(int argc, char** argv)
 	  nlsf.SetInputCloud(fg, cluster_list[best_idx].indices);
 	  // Notice this is a different kind of cost, not comparable to linear fit cost
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-	  /*
+	  
 	  pcl::PointIndices inlier_idx;
-	  remask_inliers_ellipse(centers[best_idx], width, height, -fl, target_radius, inlier_idx);
-	  //	  remask_inliers(fg, centers[best_idx], inlier_idx, width, height, -fl, target_radius);
+	  //	  remask_inliers_ellipse(centers[best_idx], width, height, -fl, target_radius, inlier_idx);
+	  remask_inliers(fg, centers[best_idx], inlier_idx, width, height, fl, target_radius);
+	  
 	  nlsf.Clear();//reset the cost function
 	  nlsf.SetInputCloud(fg, inlier_idx.indices);
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-	  */
+	  //	  */
 
 	  Eigen::Vector3d& best_ctr = centers[best_idx];
 	  coeff.values.push_back(best_ctr(0));
@@ -329,8 +330,8 @@ int main(int argc, char** argv)
 	  coeff.values.push_back(best_ctr(2));
 	  coeff.values.push_back(target_radius);
 
-	  //showfittedSphere(fg, inlier_idx, coeff);
-	  showfittedSphere(fg, cluster_list[best_idx], coeff);
+	  showfittedSphere(fg, inlier_idx, coeff);
+	  // showfittedSphere(fg, cluster_list[best_idx], coeff);
 	}
 
       while(!viewer->wasStopped())

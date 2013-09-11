@@ -207,7 +207,7 @@ SetInputCloud(typename pcl::PointCloud<T>::Ptr input,
 {
   // WARNING: This allow adding more data to it
   //  cost_fn.resize(input->size());
-  cost_fn.reserve(cost_fn.size() + input->size());
+  //  cost_fn.reserve(cost_fn.size() + input->size());
   for(int i=0; i< indices.size(); ++i)
     {
       T& p = input->points[indices[i]];

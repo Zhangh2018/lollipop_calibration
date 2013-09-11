@@ -72,9 +72,10 @@ int main(int argc, char** argv)
 
   
   // Now do the solving part...
-  //for (int i=0; i < sv.size(); ++i)
-  //  sv[i]->SolveLinearTf(lv);
+  for (int i=0; i < sv.size(); ++i)
+    sv[i]->SolveLinearTf(lv);
 
+  SaveToYaml("lsqr.yaml", lv, sv);
   // Save intermediate result:
   bool status;// = SaveToYaml("lsqr.yaml", lv, sv);
   
