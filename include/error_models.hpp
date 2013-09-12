@@ -110,6 +110,44 @@ namespace Euclidean3DError
     double p[3]; // observed (x, y, z)
   };
 
+  class AngleReprojError
+  {
+  public:
+    static ceres::CostFunction* Create(double x, double y, double z)
+    {
+      return new ceres::AutoDiffCostFunction<AngleReprojError,1,4,3,3>(
+			new AngleReprojError(x, y, z));
+    }
+
+    AngleReprojError(double ox, double oy, double oz)
+      :_ox(ox), _oy(oy), _oz(oz){}
+
+    template <typename T>
+    bool operator()(const T* const cam_quat, const T* const cam_tran,
+		    const T* const point, T* residuals) const
+    {
+      // Use a quaternion rotation that doesn't assume the quaternion is
+      // normalized, since one of the ways to run the bundler is to let Ceres
+      // optimize all 4 quaternion parameters unconstrained.   
+      T p[3], rp[3];
+      p[0] = T(_ox); p[1]=T(_oy); p[2]=T(_oz);
+      ceres::QuaternionRotatePoint(cam_quat, p, rp);
+
+      rp[0] += cam_tran[0];
+      rp[1] += cam_tran[1];
+      rp[2] += cam_tran[2];
+
+      T sine2 = (rp[2]*p[1]-rp[1]*p[2])*(rp[2]*p[1]-rp[1]*p[2])+
+	        (rp[0]*p[2]-rp[2]*p[0])*(rp[0]*p[2]-rp[2]*p[0])+
+	        (rp[0]*p[1]-rp[1]*p[0])*(rp[0]*p[1]-rp[1]*p[0]);
+      // As in Guan08 paper
+      residuals[0] = ceres::sqrt(sine2)/(rp[0]*p[0]+rp[1]*p[1]*rp[2]*p[2]);
+      return true;
+    }
+
+    double _ox, _oy, _oz; // observed (x, y, z)
+  };
+
   ceres::CostFunction* Create(double x, double y, double z, bool fixed= false)
   {
     if (!fixed)

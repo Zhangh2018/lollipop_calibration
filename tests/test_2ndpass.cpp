@@ -135,6 +135,9 @@ int main(int argc, char** argv)
 	  detect_sphere[2] = observ_nd[j][3].as<double>();
 
 	  pcl::PointIndices inliers;
+	  if (types[i] == "sr")
+	  filterInliersFromDetection(cloudp, detect_sphere, width, height,-fl, target_radius, inliers);
+	  else
 	  filterInliersFromDetection(cloudp, detect_sphere, width, height, fl, target_radius, inliers);
 
 	  // For convenience, use this instead

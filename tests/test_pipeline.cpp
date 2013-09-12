@@ -188,9 +188,11 @@ int main(int argc, char** argv)
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);
 
 	  pcl::PointIndices inlier_idx;
-	  //	  remask_inliers_ellipse(centers[best_idx], width, height, -fl, target_radius, inlier_idx);
-	  remask_inliers(fg, centers[best_idx], inlier_idx, width, height, -fl, target_radius);
-	  
+	  if (type == "sr")
+	  	remask_inliers(fg, centers[best_idx], inlier_idx, width, height,-fl, target_radius);
+	  else
+		remask_inliers(fg, centers[best_idx], inlier_idx, width, height, fl, target_radius);
+
 	  nlsf.Clear();//reset the cost function
 	  nlsf.SetInputCloud(fg, inlier_idx.indices);
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);

@@ -2,10 +2,7 @@
   Detect the balls for a single camera
  */
 
-#include "background_filter.hpp"
-#include "morph_operator.hpp"
-#include "blob_extractor.hpp"
-#include "sphere_fitter.hpp"
+#include "generic_sensor.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -42,43 +39,22 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void
     }
 }
 
-void morph_open(CloudType::Ptr fg, ImageFilter<PointType>& img_filter,
-		std::vector<char>& mask, float fl, float morph_radius)
-{
-#if 1
-  img_filter.WriteMaskToFile("mask.dump", mask);
-#endif
-  
-  // Morphological operations:
-  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
-  
-#if 1
-  img_filter.WriteMaskToFile("erode.dump", mask);
-#endif
-  
-  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
-  
-#if 1
-  img_filter.WriteMaskToFile("final.dump", mask);
-#endif
-}
-
-void showfittedSphere(CloudType::Ptr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff)
+void showfittedSphere(CloudType::Ptr cloud, std::vector<int>& pi, pcl::ModelCoefficients& coeff)
 {
   static bool first_time = true;
 
   CloudType::Ptr inlier_cloud(new CloudType), outlier_cloud(new CloudType);
 
-  if(pi.indices.size() > 0)
+  if(pi.size() > 0)
     {
-      std::sort(pi.indices.begin(), pi.indices.end());
+      std::sort(pi.begin(), pi.end());
 
       // Filter points:
-      inlier_cloud->points.reserve(pi.indices.size());
-      outlier_cloud->points.reserve(cloud->size() - pi.indices.size());
+      inlier_cloud->points.reserve(pi.size());
+      outlier_cloud->points.reserve(cloud->size() - pi.size());
       for(int i=0, j=0; i < cloud->points.size(); ++i)
 	{
-	  if (i == pi.indices[j])
+	  if (i == pi[j])
 	    {
 	      inlier_cloud->points.push_back(cloud->points[i]);
 	      ++j;
@@ -108,7 +84,7 @@ void showfittedSphere(CloudType::Ptr cloud, pcl::PointIndices& pi, pcl::ModelCoe
     first_time = false;
 
   viewer->addPointCloud<PointType> (inlier_cloud, inlier_handler, "inlier_cloud");
-  viewer->setPointCloudRenderingProperties(PCL_VISUALIZER_POINT_SIZE, 1, "inlier_cloud");
+  viewer->setPointCloudRenderingProperties(PCL_VISUALIZER_POINT_SIZE, 3, "inlier_cloud");
   viewer->addPointCloud<PointType> (outlier_cloud, outlier_handler, "outlier_cloud");
   viewer->setPointCloudRenderingProperties(PCL_VISUALIZER_POINT_SIZE, 1, "outlier_cloud");
   viewer->addSphere(coeff, "sphere");      
@@ -150,43 +126,6 @@ void remask_inliers_ellipse(Eigen::Vector3d& ctr, const int width, const int hei
     }
 }
 
-void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndices& inliers,
-		      const int width, const int height, const double fl, const double target_radius)
-{
-  int u0 = width /2 + static_cast<int>(ctr(0) / ctr(2) * fl);
-  int v0 = height/2 + static_cast<int>(ctr(1) / ctr(2) * fl);
-  int ws = abs(2*target_radius / ctr(2) * fl);
- 
-  printf("Search window = %d, centered at <%d, %d>\n", ws, u0, v0);
-
-  //  std::vector<int> inlier_list;
-  for(int u=u0-ws; u<=u0+ws; ++u)
-    {
-      for(int v=v0-ws; v<=v0+ws; ++v)
-	{
-	  if (u<0 || u>=width || v<0 || v>=height)
-	    continue;
-
-	  // This condition ensures a circular shape
-	  //	  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
-	  //	    continue;
-
-	  int linear_idx = v*width+u;
-	  PointType& p = cloudp->points[linear_idx];
-	  
-	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
-		      (p.y-ctr(1))*(p.y-ctr(1)) +
-		      (p.z-ctr(2))*(p.z-ctr(2)))/(target_radius*target_radius);
-#define INLIER_THRESHOLD 0.99	  
-	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
-     
-	    inliers.indices.push_back(linear_idx);
-	  //	  printf("add new inlier\n");
-	}
-    }
-}
-
-
 int main(int argc, char** argv)
 {
   if (argc< 2)
@@ -218,6 +157,7 @@ int main(int argc, char** argv)
   const YAML::Node& sensors = config["Sensors"];
 
   int i=0;
+
   // Here are some sensor specific information:
   std::string name    = sensors[i]["Name"].as<std::string>();
   std::string type    = sensors[i]["Type"].as<std::string>();
@@ -228,31 +168,25 @@ int main(int argc, char** argv)
 
   const int min_count = sensors[i]["cluster_min_count"].as<int>();
   const int max_count = sensors[i]["cluster_max_count"].as<int>();
- 
-  // The mask is being used throughout the pipeline
-  std::vector<char> mask;
-  ImageFilter<PointType> img_filter(bg_threshold, near_cutoff, far_cutoff);
+
+  boost::shared_ptr<Sensor> sp = RangeSensor::Create(name, type);
+  RangeSensorOptions* opt = new RangeSensorOptions(fl, width, height, bg_threshold, near_cutoff, far_cutoff,
+						   morph_radius, target_radius, min_volumn, max_volumn,
+						   min_count, max_count);
 
   const YAML::Node& pcd_node = sensors[i]["PCDs"];
   // Load the background models
-  for (int j=0; j < num_bg; ++j)
-    {
-      CloudType::Ptr bg (new CloudType);
-      std::string filename = pcd_node[j].as<std::string>();
+  CloudType::Ptr bg (new CloudType);
+  std::string filename = pcd_node[0].as<std::string>();
 	  
-      std::string full_path= glob_prefix + filename;
-      if (pcl::io::loadPCDFile<PointType> (full_path, *bg) == -1)
-	{
-	  PCL_ERROR("Failed to load file %s\n", full_path.c_str());
-	  exit(1);
-	}
-      img_filter.AddBackgroundCloud(bg);
+  std::string full_path= glob_prefix + filename;
+  if (pcl::io::loadPCDFile<PointType> (full_path, *bg) == -1)
+    {
+      PCL_ERROR("Failed to load file %s\n", full_path.c_str());
+      exit(1);
     }
-
+  
   // Process each foreground pointcloud:
-  // 1. Subtract background
-  // 2. Apply morphological operator to remove isolate each cluster
-  // 3. Find the center of the sphere from pointcloud
   const int num_fg = pcd_node.size() - num_bg;
   for (int j=0; j < num_fg; ++j)
     {
@@ -268,72 +202,29 @@ int main(int argc, char** argv)
 
       PCL_WARN("\nProcessing frame[%d] (%s)\n", j, filename.c_str());
 
-      // filter out background:
-      img_filter.GetForegroundMask(fg, mask);
-
-      // morphological operator: operation on mask
-      morph_open(fg, img_filter, mask, fl, morph_radius);
-
-      // Extract clusters from binaryImage
-      std::vector<pcl::PointIndices> cluster_list;
-      OnePassBlobExtractor<PointType> obe(width, height, min_count, max_count, min_volumn, max_volumn);
-      obe.setInputCloud(fg);
-      obe.extract(cluster_list, mask);
-
+      // Main workload of the program
+      Eigen::Vector3d center;
+      std::vector<int> inlier_idx;
+      bool flag = sp->RunPipeline((void*) &fg, (void*) &bg, (void*) opt, 
+				  inlier_idx, center);
+      
       pcl::ModelCoefficients coeff;
-      if(cluster_list.empty())
+      if(!flag)
 	{
 	  coeff.values.push_back(0.0f);   
 	  coeff.values.push_back(0.0f); 
 	  coeff.values.push_back(0.0f);	
 	  coeff.values.push_back(0.0f);   
-	  pcl::PointIndices empty_idx;
-	  showfittedSphere(fg, empty_idx, coeff);
 	}
       else // We might find a potential sphere:
 	{
-	  // Find the cluster that is most likely to be a ball
-	  double cost, best_cost = 1e5;
-	  int best_idx = -1;
-	  std::vector<Eigen::Vector3d> centers(cluster_list.size());
-	  for(int t=0; t< cluster_list.size();++t)
-	    {
-	      LinearFitter<PointType> lsf(target_radius);
-	      lsf.SetInputCloud(fg, cluster_list[t].indices);
-	      cost = lsf.ComputeFitCost(centers[t]);
-	      std::cout << "Center at "<< centers[t].transpose() <<" with cost = "<< cost<<std::endl;
-	      if (cost < best_cost)
-		{
-		  best_cost = cost;
-		  best_idx = t;
-		}
-	    }
-
-	  // Nonlinear refinement
-	  NonlinearFitter<PointType> nlsf(target_radius);
-	  nlsf.SetInputCloud(fg, cluster_list[best_idx].indices);
-	  // Notice this is a different kind of cost, not comparable to linear fit cost
-	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-	  
-	  pcl::PointIndices inlier_idx;
-	  //	  remask_inliers_ellipse(centers[best_idx], width, height, -fl, target_radius, inlier_idx);
-	  remask_inliers(fg, centers[best_idx], inlier_idx, width, height, fl, target_radius);
-	  
-	  nlsf.Clear();//reset the cost function
-	  nlsf.SetInputCloud(fg, inlier_idx.indices);
-	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-	  //	  */
-
-	  Eigen::Vector3d& best_ctr = centers[best_idx];
-	  coeff.values.push_back(best_ctr(0));
-	  coeff.values.push_back(best_ctr(1));
-	  coeff.values.push_back(best_ctr(2));
+	  coeff.values.push_back(center(0));
+	  coeff.values.push_back(center(1));
+	  coeff.values.push_back(center(2));
 	  coeff.values.push_back(target_radius);
-
-	  showfittedSphere(fg, inlier_idx, coeff);
-	  // showfittedSphere(fg, cluster_list[best_idx], coeff);
 	}
 
+      showfittedSphere(fg, inlier_idx, coeff);
       while(!viewer->wasStopped())
 	{
 	  viewer->spinOnce(100);
