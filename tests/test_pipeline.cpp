@@ -1,12 +1,6 @@
 /*
   Test the processing pipeline
  */
-
-#include "background_filter.hpp"
-#include "morph_operator.hpp"
-#include "blob_extractor.hpp"
-#include "sphere_fitter.hpp"
-
 #include <fstream>
 #include <sstream>
 #include <array>
@@ -16,6 +10,8 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/ModelCoefficients.h>
+
+#include "generic_sensor.hpp"
 
 using namespace std;
 typedef pcl::PointXYZ PointType;
@@ -27,43 +23,6 @@ typedef pcl::PointCloud<PointType> CloudType;
 
 //void showfittedSphere(CloudType::ConstPtr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff);
 //void debug_save_clusters(CloudType::Ptr cloud, std::vector<pcl::PointIndices>& cluster_list);
-
-void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndices& inliers,
-		      const int width, const int height, const double fl, const double target_radius)
-{
-  int u0 = width /2 + static_cast<int>(ctr(0) / ctr(2) * fl);
-  int v0 = height/2 + static_cast<int>(ctr(1) / ctr(2) * fl);
-  int ws = abs(2*target_radius / ctr(2) * fl);
- 
-  printf("Search window = %d, centered at <%d, %d>\n", ws, u0, v0);
-
-  //  std::vector<int> inlier_list;
-  for(int u=u0-ws; u<=u0+ws; ++u)
-    {
-      for(int v=v0-ws; v<=v0+ws; ++v)
-	{
-	  if (u<0 || u>=width || v<0 || v>=height)
-	    continue;
-
-	  // This condition ensures a circular shape
-	  //	  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
-	  //	    continue;
-
-	  int linear_idx = v*width+u;
-	  PointType& p = cloudp->points[linear_idx];
-	  
-	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
-		      (p.y-ctr(1))*(p.y-ctr(1)) +
-		      (p.z-ctr(2))*(p.z-ctr(2)))/(target_radius*target_radius);
-#define INLIER_THRESHOLD 0.99	  
-	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
-     
-	    inliers.indices.push_back(linear_idx);
-	  //	  printf("add new inlier\n");
-	}
-    }
-}
-
 
 int main(int argc, char** argv)
 {
@@ -80,7 +39,7 @@ int main(int argc, char** argv)
   
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
-  const int num_bg              = config["NumBackground"].as<int>();
+
   const float bg_threshold      = config["background_threshold"].as<float>();
   const float near_cutoff       = config["near_cutoff"].as<float>();
   const float far_cutoff        = config["far_cutoff"].as<float>();
@@ -110,36 +69,34 @@ int main(int argc, char** argv)
       os <<"    Origin: [0, 0, 0, 1, 0, 0, 0]" << std::endl;
       os <<"    Observations:" << std::endl;
 
-      // The mask is being used throughout the pipeline
-      std::vector<char> mask;
-      ImageFilter<PointType> img_filter(bg_threshold, near_cutoff, far_cutoff);
-      
+      boost::shared_ptr<Sensor> sp = RangeSensor::Create(name, type);
+      RangeSensorOptions* opt = new RangeSensorOptions(fl, width, height, bg_threshold, near_cutoff, far_cutoff,
+						       morph_radius, target_radius, min_volumn, max_volumn,
+						       min_count, max_count);
+
       const YAML::Node& pcd_node = sensors[i]["PCDs"];
       // Load the background models
-      for (int j=0; j < num_bg; ++j)
-	{
-	  CloudType::Ptr bg (new CloudType);
-	  std::string filename = pcd_node[j].as<std::string>();
+
+      CloudType::Ptr bg (new CloudType);
+      std::string filename = pcd_node[0].as<std::string>();
 	  
-	  std::string full_path= glob_prefix + filename;
-	  if (pcl::io::loadPCDFile<PointType> (full_path, *bg) == -1)
-	    {
-	      PCL_ERROR("Failed to load file %s\n", full_path.c_str());
-	      exit(1);
-	    }
-	  img_filter.AddBackgroundCloud(bg);
+      std::string full_path= glob_prefix + filename;
+      if (pcl::io::loadPCDFile<PointType> (full_path, *bg) == -1)
+	{
+	  PCL_ERROR("Failed to load file %s\n", full_path.c_str());
+	  exit(1);
 	}
+
 
       // Process each foreground pointcloud:
       // 1. Subtract background
       // 2. Apply morphological operator to remove isolate each cluster
       // 3. Find the center of the sphere from pointcloud
-      const int num_fg = pcd_node.size() - num_bg;
-      for (int j=0; j < num_fg; ++j)
+      for (int j = 1; j < pcd_node.size(); ++j)
 	{
 	  CloudType::Ptr fg(new CloudType);
 	  
-	  std::string filename = pcd_node[j+num_bg].as<std::string>();
+	  std::string filename = pcd_node[j].as<std::string>();
 	  std::string full_path= glob_prefix + filename;
 	  if (pcl::io::loadPCDFile<PointType> (full_path, *fg) == -1)
 	    {
@@ -148,60 +105,15 @@ int main(int argc, char** argv)
 	    }
 	 
 	  PCL_WARN("\nProcessing Sensor[%d], frame[%d] (%s)\n", i, j, filename.c_str()); 
-	  // filter out background:
-	  img_filter.GetForegroundMask(fg, mask);
-	  // Morphological operations:
-	  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
-	  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
 
-	  // Extract clusters from binaryImage
-	  std::vector<pcl::PointIndices> cluster_list;
-	  OnePassBlobExtractor<PointType> obe(width, height, min_count, max_count, min_volumn, max_volumn);
-	  obe.setInputCloud(fg);
-	  obe.extract(cluster_list, mask);
+	  // Main workload of the program
+	  Eigen::Vector3d best_ctr;
+	  std::vector<int> inlier_idx;
+	  bool flag = sp->RunPipeline((void*) &fg, (void*) &bg, (void*) opt, 
+				      inlier_idx, best_ctr);
 
-	  assert(!cluster_list.empty());
-
-	  // Find the cluster that is most likely to be a ball
-	  double cost, best_cost = 1e5;
-	  int best_idx = -1;
-	  std::vector<Eigen::Vector3d> centers(cluster_list.size());
-	  for(int k=0; k< cluster_list.size();++k)
-	    {
-	      LinearFitter<PointType> lsf(target_radius);
-	      lsf.SetInputCloud(fg, cluster_list[k].indices);
-	      cost = lsf.ComputeFitCost(centers[k]);
-	      std::cout << "Center at "<< centers[k].transpose() <<" with cost = "<< cost<<std::endl;
-	      if (cost < best_cost)
-		{
-		  best_cost = cost;
-		  best_idx = k;
-		}
-	    }
-
-#if USE_NONLINEAR_REFINEMENT
-	  // Nonlinear refinement
-	  NonlinearFitter<PointType> nlsf(target_radius);
-	  nlsf.Clear();
-	  nlsf.SetInputCloud(fg, cluster_list[best_idx].indices);
-	  // Notice this is a different kind of cost, not comparable to linear fit cost
-	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-
-	  pcl::PointIndices inlier_idx;
-	  if (type == "sr")
-	  	remask_inliers(fg, centers[best_idx], inlier_idx, width, height,-fl, target_radius);
-	  else
-		remask_inliers(fg, centers[best_idx], inlier_idx, width, height, fl, target_radius);
-
-	  nlsf.Clear();//reset the cost function
-	  nlsf.SetInputCloud(fg, inlier_idx.indices);
-	  cost = nlsf.ComputeFitCost(centers[best_idx]);
-#endif
-
-	  Eigen::Vector3d& best_ctr = centers[best_idx];
 	  os << "      - ["<<j<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
-	  
-  
+
 	  // Save the first sensor's measurement as landmarks
 	  if (i==0)
 	    {

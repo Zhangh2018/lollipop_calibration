@@ -20,12 +20,12 @@ class RangeSensorOptions
 public:
   const double focal_length;
   const int width, height;
-  const double bg_threshold, near_cutoff, far_cutoff, morph_radius;
+  const float bg_threshold, near_cutoff, far_cutoff, morph_radius;
   const double target_radius, min_volumn, max_volumn;
   const int    min_count, max_count;
 
   RangeSensorOptions(const double fl, const int w, const int h,
-		     const double bgt, const double nc, const double fc, const double mr,
+		     const float bgt, const float nc, const float fc, const float mr,
 		     const double tr, const double mv, const double Mv, const int mc, const int Mc)
     :focal_length(fl), width(w), height(h), 
      bg_threshold(bgt), near_cutoff(nc), far_cutoff(fc), morph_radius(mr), target_radius(tr),
@@ -98,10 +98,17 @@ public:
     img_filter.AddBackgroundCloud(bg);
 
     img_filter.GetForegroundMask(fg, mask);
+
+    img_filter.WriteMaskToFile("mask.dump", mask);
+
     // Morphological operations:
     Morphology::Erode2_5D<PointType> (fg, mask, opt->focal_length, opt->morph_radius);
 
+    img_filter.WriteMaskToFile("erode.dump", mask);
+
     Morphology::Dilate2_5D<PointType>(fg, mask, opt->focal_length, opt->morph_radius);
+
+    img_filter.WriteMaskToFile("final.dump", mask);
 
     // Extract clusters from binaryImage
     std::vector<pcl::PointIndices> cluster_list;
