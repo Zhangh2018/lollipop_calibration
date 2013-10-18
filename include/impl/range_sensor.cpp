@@ -112,12 +112,13 @@ public:
 
     // Extract clusters from binaryImage
     std::vector<pcl::PointIndices> cluster_list;
-    FastBlobExtractor<PointType> obe(opt->width, opt->height, 
+
+    FastBlobExtractor<PointType> fbe(opt->width, opt->height, 
 				     opt->min_count,  opt->max_count, 
 				     opt->min_volumn, opt->max_volumn);
 
-    obe.setInputCloud(fg);
-    obe.extract(cluster_list, mask);
+    fbe.setInputCloud(fg);
+    fbe.extract(cluster_list, mask);
 
     // Not cluster could meet the requirements
     if(cluster_list.empty())
@@ -192,23 +193,22 @@ private:
 	    int linear_idx = v*width+u;
 	    PointType& p = cloudp->points[linear_idx];
 
-	    /*	  
-	    double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
-			(p.y-ctr(1))*(p.y-ctr(1)) +
-			(p.z-ctr(2))*(p.z-ctr(2)))/(target_radius*target_radius);
-#define INLIER_THRESHOLD 0.99	  
-	    if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
-	      inliers.push_back(linear_idx);
-	    //	  printf("add new inlier\n");
-	    */
-	  double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
-			  (p.y-ctr(1))*(p.y-ctr(1)) +
-			  (p.z-ctr(2))*(p.z-ctr(2)));
-	  d = abs(d-target_radius);
+	    double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
+			    (p.y-ctr(1))*(p.y-ctr(1)) +
+			    (p.z-ctr(2))*(p.z-ctr(2)));
+	    d = abs(d-target_radius);
 #define RATIO 2.0	  
-	  if ( d > target_radius/RATIO && d < RATIO*target_radius )
-	    inliers.indices.push_back(linear_idx);
+	    if ( d > target_radius/RATIO && d < RATIO*target_radius )
+	      inliers.indices.push_back(linear_idx);
 	  }
       }
   }
 };
+
+
+
+
+
+
+
+
