@@ -26,11 +26,11 @@ target_link_libraries(raycost ${CERES_LIBRARIES})
 add_executable(pipeline test_pipeline.cpp)
 target_link_libraries(pipeline ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
-add_executable(detect_ball test_detect_ball.cpp)
-target_link_libraries(detect_ball ${PCL_LIBRARIES}  ${CERES_LIBRARIES} yaml-cpp)
+#add_executable(detect_ball test_detect_ball.cpp)
+#target_link_libraries(detect_ball ${PCL_LIBRARIES}  ${CERES_LIBRARIES} yaml-cpp)
 
 add_executable(single_cam test_single_cam.cpp)
 target_link_libraries(single_cam ${PCL_LIBRARIES}  ${CERES_LIBRARIES} yaml-cpp)
 
-add_executable(proc_gt proc_gt.cpp)
-target_link_libraries(proc_gt ${PCL_LIBRARIES})
+#add_executable(proc_gt proc_gt.cpp)
+#target_link_libraries(proc_gt ${PCL_LIBRARIES})

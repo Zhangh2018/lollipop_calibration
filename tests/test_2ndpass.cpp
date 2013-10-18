@@ -87,8 +87,10 @@ int main(int argc, char** argv)
   std::vector<std::string> types(sensor_nd.size());
   for (int i=0; i < sensor_nd.size(); i++) // Outer loop goes through all sensors
     {
-      types[i] = sensor_nd[i]["Type"].as<std::string>();
+      types[i] = config["Sensors"][i]["Type"].as<std::string>();
       names[i] = sensor_nd[i]["Name"].as<std::string>();
+
+      std::cout<<"Sensor: " << names[i] <<" of type: "<< types[i] <<std::endl;
 
       const YAML::Node& origin_nd = sensor_nd[i]["Origin"];
       const YAML::Node& observ_nd = sensor_nd[i]["Observations"];
@@ -135,7 +137,8 @@ int main(int argc, char** argv)
 	  detect_sphere[2] = observ_nd[j][3].as<double>();
 
 	  pcl::PointIndices inliers;
-	  filterInliersFromDetection(cloudp, detect_sphere, width, height, fl, target_radius, inliers);
+	  float f = types[i]=="sr" ? -fl : fl;
+	  filterInliersFromDetection(cloudp, detect_sphere, width, height, f, target_radius, inliers);
 
 	  // For convenience, use this instead
 	  std::vector<int>& inlier_list = inliers.indices;
@@ -197,6 +200,7 @@ void filterInliersFromDetection(CloudType::Ptr cloudp, Eigen::Vector3d& ctr,
 	    continue;
 
 	  int linear_idx = v*width+u;
+	  //	  printf("idx = %d (%d, %d)\n", linear_idx, u, v);
 	  PointType& p = cloudp->points[linear_idx];
 	  
 	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +

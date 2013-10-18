@@ -90,6 +90,7 @@ int main(int argc, char** argv)
 
   const YAML::Node& sensors = config["Sensors"];
 
+  PCL_INFO("%d sensors in the config\n", sensors.size());
   std::vector<std::array<double,3> > landmarks;
   os << "Sensors:"<< std::endl;
   for (int i=0; i< sensors.size(); i++)
@@ -156,7 +157,7 @@ int main(int argc, char** argv)
 
 	  // Extract clusters from binaryImage
 	  std::vector<pcl::PointIndices> cluster_list;
-	  OnePassBlobExtractor<PointType> obe(width, height, min_count, max_count, min_volumn, max_volumn);
+	  FastBlobExtractor<PointType> obe(width, height, min_count, max_count, min_volumn, max_volumn);
 	  obe.setInputCloud(fg);
 	  obe.extract(cluster_list, mask);
 
@@ -168,6 +169,8 @@ int main(int argc, char** argv)
 	  std::vector<Eigen::Vector3d> centers(cluster_list.size());
 	  for(int k=0; k< cluster_list.size();++k)
 	    {
+	      if(cluster_list[k].indices.empty())
+		continue;
 	      LinearFitter<PointType> lsf(target_radius);
 	      lsf.SetInputCloud(fg, cluster_list[k].indices);
 	      cost = lsf.ComputeFitCost(centers[k]);

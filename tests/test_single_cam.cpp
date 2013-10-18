@@ -15,6 +15,7 @@
 
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/console/parse.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <boost/thread/thread.hpp>
 #include <pcl/ModelCoefficients.h>
@@ -43,24 +44,9 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void
 }
 
 void morph_open(CloudType::Ptr fg, ImageFilter<PointType>& img_filter,
-		std::vector<char>& mask, float fl, float morph_radius)
+		std::vector<char>& mask, float fl, float morph_radius, bool debug)
 {
-#if 1
-  img_filter.WriteMaskToFile("mask.dump", mask);
-#endif
-  
-  // Morphological operations:
-  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
-  
-#if 1
-  img_filter.WriteMaskToFile("erode.dump", mask);
-#endif
-  
-  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
-  
-#if 1
-  img_filter.WriteMaskToFile("final.dump", mask);
-#endif
+
 }
 
 void showfittedSphere(CloudType::Ptr cloud, pcl::PointIndices& pi, pcl::ModelCoefficients& coeff)
@@ -174,12 +160,12 @@ void remask_inliers(CloudType::Ptr cloudp, Eigen::Vector3d& ctr, pcl::PointIndic
 	  int linear_idx = v*width+u;
 	  PointType& p = cloudp->points[linear_idx];
 	  
-	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
-		      (p.y-ctr(1))*(p.y-ctr(1)) +
-		      (p.z-ctr(2))*(p.z-ctr(2)))/(target_radius*target_radius);
+	  double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
+			  (p.y-ctr(1))*(p.y-ctr(1)) +
+			  (p.z-ctr(2))*(p.z-ctr(2)));
+	  d = abs(d-target_radius);
 #define INLIER_THRESHOLD 0.99	  
-	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
-     
+	  if ( d > 0.5*target_radius && d < 2.0*target_radius )
 	    inliers.indices.push_back(linear_idx);
 	  //	  printf("add new inlier\n");
 	}
@@ -192,8 +178,17 @@ int main(int argc, char** argv)
   if (argc< 2)
     {
       printf("Usage: %s <config.yaml>\n", argv[0]);
+      PCL_WARN("Options:\n");
+      PCL_WARN(" -debug [0|1 defualt=0] \n");
+      PCL_WARN(" -morph [0|1 default=1] \n");
       return -1;
     }
+
+  bool debug = 0;
+  pcl::console::parse_argument(argc, argv, "-debug", debug);
+
+  bool morph = 1;
+  pcl::console::parse_argument(argc, argv, "-morph", morph);
 
   viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer("3D Viewer"));
   //      viewer.addCoordinateSystem (0.05);
@@ -272,13 +267,29 @@ int main(int argc, char** argv)
       img_filter.GetForegroundMask(fg, mask);
 
       // morphological operator: operation on mask
-      morph_open(fg, img_filter, mask, fl, morph_radius);
+      morph_open(fg, img_filter, mask, fl, morph_radius, debug);
+      if(debug)
+	img_filter.WriteMaskToFile("mask.dump", mask);
+
+      if(morph)
+	{
+	  // Morphological operations:
+	  Morphology::Erode2_5D<PointType> (fg, mask, fl, morph_radius);
+  
+	  if(debug)
+	    img_filter.WriteMaskToFile("erode.dump", mask);
+	  
+	  Morphology::Dilate2_5D<PointType>(fg, mask, fl, morph_radius);
+	  
+	  if(debug)
+	    img_filter.WriteMaskToFile("final.dump", mask);
+	}
 
       // Extract clusters from binaryImage
       std::vector<pcl::PointIndices> cluster_list;
-      OnePassBlobExtractor<PointType> obe(width, height, min_count, max_count, min_volumn, max_volumn);
-      obe.setInputCloud(fg);
-      obe.extract(cluster_list, mask);
+      FastBlobExtractor<PointType> extractor(width, height, min_count, max_count, min_volumn, max_volumn);
+      extractor.setInputCloud(fg);
+      extractor.extract(cluster_list, mask);
 
       pcl::ModelCoefficients coeff;
       if(cluster_list.empty())
@@ -298,6 +309,9 @@ int main(int argc, char** argv)
 	  std::vector<Eigen::Vector3d> centers(cluster_list.size());
 	  for(int t=0; t< cluster_list.size();++t)
 	    {
+	      if(cluster_list[t].indices.empty())
+		continue;
+
 	      LinearFitter<PointType> lsf(target_radius);
 	      lsf.SetInputCloud(fg, cluster_list[t].indices);
 	      cost = lsf.ComputeFitCost(centers[t]);
@@ -315,9 +329,9 @@ int main(int argc, char** argv)
 	  // Notice this is a different kind of cost, not comparable to linear fit cost
 	  cost = nlsf.ComputeFitCost(centers[best_idx]);
 	  
-	  pcl::PointIndices inlier_idx;
+	  pcl::PointIndices& inlier_idx = cluster_list[best_idx];
 	  //	  remask_inliers_ellipse(centers[best_idx], width, height, -fl, target_radius, inlier_idx);
-	  remask_inliers(fg, centers[best_idx], inlier_idx, width, height, fl, target_radius);
+	  //remask_inliers(fg, centers[best_idx], inlier_idx, width, height, fl, target_radius);
 	  
 	  nlsf.Clear();//reset the cost function
 	  nlsf.SetInputCloud(fg, inlier_idx.indices);
