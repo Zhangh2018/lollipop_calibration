@@ -32,7 +32,7 @@ int main(int argc, char** argv)
       std::string name = sensors[i]["Name"].as<std::string>();
 
       std::cout<< "Create sensor of type: "<< type << " and name "<< name<<std::endl;
-      sv[i] = Sensor::Create(type, name);
+      sv[i] = RangeSensor::Create(type, name);
 
       YAML::Node origin=node["Origin"];
 
@@ -119,8 +119,8 @@ bool SaveToYaml(std::string file, std::vector<Eigen::Vector3d>& lv,
       out << org[0] << org[1] << org[2] << org[3] << org[4] << org[5] << org[6] << YAML::EndSeq;
 
       out << YAML::Key << "Observations" << YAML::Value << YAML::BeginSeq;
-      std::map<int, Eigen::Vector3d>::iterator it = sv[i]->measure.begin();
-      while (it != sv[i]->measure.end())
+      std::map<int, Eigen::Vector3d>::iterator it = sv[i]->_measure.begin();
+      while (it != sv[i]->_measure.end())
 	{
 	  Eigen::Vector3d& v = it->second;
 	  out << YAML::Flow << YAML::BeginSeq << it->first << v(0) << v(1) << v(2) << YAML::EndSeq;

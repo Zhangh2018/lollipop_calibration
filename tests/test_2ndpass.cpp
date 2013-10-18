@@ -87,7 +87,7 @@ int main(int argc, char** argv)
   std::vector<std::string> types(sensor_nd.size());
   for (int i=0; i < sensor_nd.size(); i++) // Outer loop goes through all sensors
     {
-      types[i] = config["Sensors"][i]["Type"].as<std::string>();
+      types[i] = sensor_nd[i]["Type"].as<std::string>();
       names[i] = sensor_nd[i]["Name"].as<std::string>();
 
       std::cout<<"Sensor: " << names[i] <<" of type: "<< types[i] <<std::endl;
@@ -137,9 +137,10 @@ int main(int argc, char** argv)
 	  detect_sphere[2] = observ_nd[j][3].as<double>();
 
 	  pcl::PointIndices inliers;
+
 	  float f = types[i]=="sr" ? -fl : fl;
 	  filterInliersFromDetection(cloudp, detect_sphere, width, height, f, target_radius, inliers);
-
+	
 	  // For convenience, use this instead
 	  std::vector<int>& inlier_list = inliers.indices;
 #if SHOW_INLIER
