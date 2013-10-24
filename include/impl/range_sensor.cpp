@@ -196,12 +196,18 @@ private:
 	    double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
 			    (p.y-ctr(1))*(p.y-ctr(1)) +
 			    (p.z-ctr(2))*(p.z-ctr(2)));
-	    d = abs(d-target_radius);
-#define RATIO 2.0	  
-	    if ( d > target_radius/RATIO && d < RATIO*target_radius )
-	      inliers.indices.push_back(linear_idx);
+
+	    double diff = std::abs(d-target_radius);
+#define RATIO 0.5
+	    if (diff < (RATIO*target_radius) )
+	      {
+		inliers.push_back(linear_idx);
+		//		printf("d=%lf, diff=%lf\n", d, diff);
+	      }
 	  }
       }
+
+    printf("# of inliers=%d\n", inliers.size());
   }
 };
 
