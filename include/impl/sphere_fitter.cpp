@@ -111,6 +111,54 @@ ComputeFitCost(Eigen::Vector3d& center)
                     NonlinearFitter
  ***********************************************************
  **********************************************************/
+class AutoRayCostFunction
+{
+public:
+  AutoRayCostFunction(double xj, double yj, double zj)
+  {
+    r  = std::sqrt(xj*xj+yj*yj+zj*zj);// + 1e-5
+    x  = xj / r;
+    y  = yj / r;
+    z  = zj / r;
+    // p_hat = [x, y, z]
+    // ||p|| = r
+  }
+
+  template <typename T>
+  bool operator()(const T* const U, T* res) const
+  {
+    T Rt = T(this->R);
+    T rt = T(r);
+    T xt = T(x); T yt = T(y); T zt = T(z);
+
+    // q = U x p_hat
+    T q  = ceres::sqrt( (U[0]*yt-U[1]*xt)*(U[0]*yt-U[1]*xt)
+		       +(U[1]*zt-U[2]*yt)*(U[1]*zt-U[2]*yt)
+		       +(U[2]*xt-U[0]*zt)*(U[2]*xt-U[0]*zt));
+
+    if (q >= Rt)
+      res[0] = T(0.0);
+    else
+      {
+	T d  = ceres::sqrt(Rt*Rt-q*q);
+	T ph_U = xt*U[0]+yt*U[1]+zt*U[2];
+	T k  = ph_U-d;
+	T U2 = U[0]*U[0]+U[1]*U[1]+U[2]*U[2];
+	T p_U2 = (rt*xt-U[0])*(rt*xt-U[0])+(rt*yt-U[1])*(rt*yt-U[1])+(rt*zt-U[2])*(rt*zt-U[2]);
+	// e^2 = R^2+|p-U|^2-2*R*(p-U)*cos(a)
+	res[0] = ceres::sqrt(Rt*Rt + p_U2 - T(2.0)*(k*rt +U2 - (k+rt)*ph_U));
+      }
+
+    return true;
+  }
+
+  static double R;
+private:
+  double r;
+  double x, y, z;// x, y, z are normalized
+};
+
+double AutoRayCostFunction::R = 0.0;
 
 // Helper class: RayCostFunction
 class RayCostFunction:public ceres::SizedCostFunction<1, 3>
@@ -173,10 +221,11 @@ private:
 double RayCostFunction::R = 0.0;
 
 template<typename T>
-NonlinearFitter<T>::NonlinearFitter(double radius)
-  :SphereFitter<T>(radius)
+NonlinearFitter<T>::NonlinearFitter(double radius, int w = 0)
+  :SphereFitter<T>(radius), which(w)
 {
   RayCostFunction::R = radius;
+  AutoRayCostFunction::R = radius;
 
   options.max_num_iterations = 50;
   options.linear_solver_type = ceres::DENSE_QR;
@@ -185,7 +234,17 @@ NonlinearFitter<T>::NonlinearFitter(double radius)
 template<typename T> void NonlinearFitter<T>::
 Clear()
 {
+  which = 1;// now use the second method
   cost_fn.clear();
+}
+
+template<typename T> void NonlinearFitter<T>::
+AddCostFunction(double x, double y, double z)
+{
+  if(which==0)
+    cost_fn.push_back(new RayCostFunction(x, y, z));
+  else
+    cost_fn.push_back(new ceres::AutoDiffCostFunction<AutoRayCostFunction,1,3> (new AutoRayCostFunction(x, y, z)));
 }
 
 template<typename T> void NonlinearFitter<T>::
@@ -197,7 +256,7 @@ SetInputCloud(typename pcl::PointCloud<T>::Ptr input)
     {
       T& p = input->points[i];
 
-      cost_fn.push_back(new RayCostFunction(p.x,p.y,p.z));
+      AddCostFunction(p.x, p.y, p.z);
     }
 }
 
@@ -212,7 +271,7 @@ SetInputCloud(typename pcl::PointCloud<T>::Ptr input,
     {
       T& p = input->points[indices[i]];
 
-      cost_fn.push_back(new RayCostFunction(p.x,p.y,p.z));
+      AddCostFunction(p.x, p.y, p.z);
     }
 }
 

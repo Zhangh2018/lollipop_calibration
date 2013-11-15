@@ -152,12 +152,12 @@ public:
     // Notice this is a different kind of cost, not comparable to linear fit cost
     cost = nlsf.ComputeFitCost(centers[best_idx]);
 
-    double fl;
-    if (_type == "sr")
+    double fl = opt->focal_length;
+    /*    if (_type == "sr")
       fl = -opt->focal_length;
     else
       fl = opt->focal_length;
-
+    */
     remask_inliers(fg, centers[best_idx], inlier_idx, opt->width, opt->height,fl,opt->target_radius);
     
     nlsf.Clear();//reset the cost function
@@ -199,7 +199,7 @@ private:
 
 	    double diff = std::abs(d-target_radius);
 #define RATIO 0.5
-	    if (diff < (RATIO*target_radius) )
+	    //	    if (diff < (RATIO*target_radius) )
 	      {
 		inliers.push_back(linear_idx);
 		//		printf("d=%lf, diff=%lf\n", d, diff);
@@ -207,7 +207,7 @@ private:
 	  }
       }
 
-    printf("# of inliers=%d\n", inliers.size());
+    //    printf("# of inliers=%d\n", inliers.size());
   }
 };
 

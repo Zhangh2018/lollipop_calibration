@@ -113,7 +113,8 @@ public:
 		cluster_list[i].indices.clear();
 		printf("Cluster[%d] rejected: volume=%f\n", i, v);
 	      }
-	    printf("Cluster[%d] Added: size=%d volume=%f\n", i, s, v);
+	    else
+	      printf("Cluster[%d] Added: size=%d volume=%f\n", i, s, v);
 	  }
       }
     delete output;

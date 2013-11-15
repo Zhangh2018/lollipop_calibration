@@ -229,6 +229,7 @@ int main(int argc, char** argv)
 	}
       else // We might find a potential sphere:
 	{
+	  pcl::io::savePCDFile("test.pcd", *fg, inlier_idx);
 	  coeff.values.push_back(center(0));
 	  coeff.values.push_back(center(1));
 	  coeff.values.push_back(center(2));

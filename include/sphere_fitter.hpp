@@ -60,7 +60,7 @@ template <typename T>
 class NonlinearFitter: public SphereFitter<T>
 {
 public:
-  NonlinearFitter(double radius);
+  NonlinearFitter(double radius, int w);
 
   virtual void SetInputCloud(typename pcl::PointCloud<T>::Ptr input);
   
@@ -71,6 +71,9 @@ public:
 
   virtual void Clear();
 private:
+  void AddCostFunction(double x, double y, double z);
+
+  int which;
   ceres::Solver::Options options;
   ceres::Problem problem;
   std::vector<ceres::CostFunction*> cost_fn;

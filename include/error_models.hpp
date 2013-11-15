@@ -124,24 +124,30 @@ namespace Euclidean3DError
 
     template <typename T>
     bool operator()(const T* const cam_quat, const T* const cam_tran,
-		    const T* const point, T* residuals) const
+		    const T* const lmk, T* residuals) const
     {
       // Use a quaternion rotation that doesn't assume the quaternion is
       // normalized, since one of the ways to run the bundler is to let Ceres
       // optimize all 4 quaternion parameters unconstrained.   
-      T p[3], rp[3];
-      p[0] = T(_ox); p[1]=T(_oy); p[2]=T(_oz);
-      ceres::QuaternionRotatePoint(cam_quat, p, rp);
+      T ray[3], rp[3];
+      ray[0] = T(_ox); ray[1]=T(_oy); ray[2]=T(_oz);
+      ceres::QuaternionRotatePoint(cam_quat, lmk, rp);
 
       rp[0] += cam_tran[0];
       rp[1] += cam_tran[1];
       rp[2] += cam_tran[2];
 
-      T sine2 = (rp[2]*p[1]-rp[1]*p[2])*(rp[2]*p[1]-rp[1]*p[2])+
-	        (rp[0]*p[2]-rp[2]*p[0])*(rp[0]*p[2]-rp[2]*p[0])+
-	        (rp[0]*p[1]-rp[1]*p[0])*(rp[0]*p[1]-rp[1]*p[0]);
-      // As in Guan08 paper
-      residuals[0] = ceres::sqrt(sine2)/(rp[0]*p[0]+rp[1]*p[1]*rp[2]*p[2]);
+      T ray_cross_reproj[3];
+      ceres::CrossProduct(ray, rp, ray_cross_reproj);
+      T ray_dot_reproj =  ceres::DotProduct(ray, rp);
+
+      residuals[0] = ceres::sqrt(ceres::DotProduct(ray_cross_reproj, ray_cross_reproj)) /ceres::abs(ray_dot_reproj);
+      /*
+      // differ from Guan08 paper (squared error)
+      residuals[0] = ray_cross_reproj[0]/ray_dot_reproj;
+      residuals[1] = ray_cross_reproj[1]/ray_dot_reproj;
+      residuals[2] = ray_cross_reproj[2]/ray_dot_reproj;
+      */
       return true;
     }
 
