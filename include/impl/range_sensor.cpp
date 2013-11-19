@@ -152,12 +152,13 @@ public:
     // Notice this is a different kind of cost, not comparable to linear fit cost
     cost = nlsf.ComputeFitCost(centers[best_idx]);
 
-    double fl;
+    double fl = opt->focal_length;
+    /*
     if (_type == "sr")
       fl = -opt->focal_length;
     else
       fl = opt->focal_length;
-
+    */
     remask_inliers(fg, centers[best_idx], inlier_idx, opt->width, opt->height,fl,opt->target_radius);
     
     nlsf.Clear();//reset the cost function
