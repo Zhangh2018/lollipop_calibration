@@ -11,6 +11,9 @@
 #include <boost/thread/thread.hpp>
 
 #include "pcl_utils.hpp"
+#include "sphere_fitter.hpp"
+
+#define TARGET_RADIUS 0.204
 
 boost::shared_ptr<pcl::visualization::PCLVisualizer> 
 SetupViewer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud,
@@ -33,6 +36,41 @@ SetupViewer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud,
   return (viewer);
 }
 
+pcl::PointIndices::Ptr
+RansacMethod(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudp, pcl::ModelCoefficients::Ptr coeff)
+{
+  //Create the segmentation object
+  pcl::SACSegmentation<pcl::PointXYZ> seg;
+  pcl::PointIndices::Ptr inlier (new pcl::PointIndices ());
+
+  // Optional
+  seg.setOptimizeCoefficients(true);
+  // Mandatory
+  seg.setModelType(pcl::SACMODEL_SPHERE);
+  seg.setMethodType(pcl::SAC_RANSAC);
+  seg.setMaxIterations(1000);
+  seg.setDistanceThreshold(0.01);
+
+  seg.setRadiusLimits(0.20315, 0.20325);
+
+  seg.setInputCloud(cloudp);
+  seg.segment(*inlier, *coeff);
+
+  return inlier;
+}
+
+void RayCostMethod(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::ModelCoefficients::Ptr coeff)
+{
+  Eigen::Vector3d center;
+  center << coeff->values[0], coeff->values[1], coeff->values[2];
+
+  NonlinearFitter<pcl::PointXYZ> nlsf(TARGET_RADIUS);
+  nlsf.SetInputCloud(cloud);
+  // Notice this is a different kind of cost, not comparable to linear fit cost
+  nlsf.ComputeFitCost(center);
+}
+
+
 int main(int argc, char** argv)
 {
   if (argc < 2)
@@ -50,26 +88,13 @@ int main(int argc, char** argv)
   else
     PCL_WARN("Loaded PCD %s\n", argv[1]);
 
-  
-  //Create the segmentation object
-  pcl::SACSegmentation<pcl::PointXYZ> seg;
-  pcl::PointIndices::Ptr inlier (new pcl::PointIndices ());
   pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients ());
-  // Optional
-  seg.setOptimizeCoefficients(true);
-  // Mandatory
-  seg.setModelType(pcl::SACMODEL_SPHERE);
-  seg.setMethodType(pcl::SAC_RANSAC);
-  seg.setMaxIterations(1000);
-  seg.setDistanceThreshold(0.01);
+  pcl::PointIndices::Ptr inlier = RansacMethod(cloudp, coeff);
+  // RaycostMethod(cloudp, center);
 
-  seg.setRadiusLimits(0.20315, 0.20325);
+  printf("%lf %lf %lf %lf\n",  coeff->values[0], coeff->values[1], coeff->values[2], coeff->values[3]);
 
-  seg.setInputCloud(cloudp);
-  seg.segment(*inlier, *coeff);
-
-  printf("%lf %lf %lf %lf\n", coeff->values[0], coeff->values[1], coeff->values[2], coeff->values[3]);
-
+#if 0
   // Separate and colorize inliers and outliers
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr clr_cloud = ColorizeCloud(cloudp, inlier);
 
@@ -82,5 +107,6 @@ int main(int argc, char** argv)
       viewer->spinOnce(100);
       boost::this_thread::sleep (boost::posix_time::microseconds (100000));
     }
+#endif
   return 0;
 }

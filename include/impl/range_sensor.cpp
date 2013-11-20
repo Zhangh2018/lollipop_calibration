@@ -159,12 +159,13 @@ public:
     else
       fl = opt->focal_length;
     */
+    /*
     remask_inliers(fg, centers[best_idx], inlier_idx, opt->width, opt->height,fl,opt->target_radius);
     
     nlsf.Clear();//reset the cost function
     nlsf.SetInputCloud(fg, inlier_idx);
     cost = nlsf.ComputeFitCost(centers[best_idx]);
-
+    */
     result = centers[best_idx];
     return true;
   }
