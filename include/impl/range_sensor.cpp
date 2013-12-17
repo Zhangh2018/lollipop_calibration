@@ -209,7 +209,7 @@ private:
 	  }
       }
 
-    printf("# of inliers=%d\n", inliers.size());
+    printf("# of inliers=%u\n", inliers.size());
   }
 };
 

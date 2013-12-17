@@ -158,12 +158,6 @@ int main(int argc, char** argv)
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
   const int num_bg              = config["NumBackground"].as<int>();
-  const float bg_threshold      = config["background_threshold"].as<float>();
-  const float near_cutoff       = config["near_cutoff"].as<float>();
-  const float far_cutoff        = config["far_cutoff"].as<float>();
-  const float morph_radius      = config["morphological_radius"].as<float>();
-  const double min_volumn       = config["cluster_min_volumn"].as<double>();
-  const double max_volumn       = config["cluster_max_volumn"].as<double>();
 
   const YAML::Node& sensors = config["Sensors"];
 
@@ -177,8 +171,14 @@ int main(int argc, char** argv)
   const int width     = sensors[i]["Width"].as<int>();
   const int height    = sensors[i]["Height"].as<int>();
 
-  const int min_count = sensors[i]["cluster_min_count"].as<int>();
-  const int max_count = sensors[i]["cluster_max_count"].as<int>();
+  const float bg_threshold = sensors[i]["background_threshold"].as<float>();
+  const float near_cutoff  = sensors[i]["near_cutoff"].as<float>();
+  const float far_cutoff   = sensors[i]["far_cutoff"].as<float>();
+  const float morph_radius = sensors[i]["morphological_radius"].as<float>();
+  const double min_volumn  = sensors[i]["cluster_min_volumn"].as<double>();
+  const double max_volumn  = sensors[i]["cluster_max_volumn"].as<double>();
+  const int min_count      = sensors[i]["cluster_min_count"].as<int>();
+  const int max_count      = sensors[i]["cluster_max_count"].as<int>();
 
   boost::shared_ptr<Sensor> sp = RangeSensor::Create(name, type);
   RangeSensorOptions* opt = new RangeSensorOptions(fl, width, height, bg_threshold, near_cutoff, far_cutoff,
