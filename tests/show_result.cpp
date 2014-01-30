@@ -18,9 +18,9 @@ typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointType> ColorHandler;
 
-double r[] = {255.0,   0.0,   0.0, 255.0, 255.0,   0.0};
-double g[] = {  0.0, 255.0,   0.0, 255.0,   0.0, 255.0};
-double b[] = {  0.0,   0.0, 255.0,   0.0, 255.0, 255.0};
+double r[] = {255.0,   0.0, 255.0,   0.0, 255.0,   0.0};
+double g[] = {  0.0, 255.0, 255.0,   0.0,   0.0, 255.0};
+double b[] = {  0.0,   0.0,   0.0, 255.0, 255.0, 255.0};
 pcl::visualization::PCLVisualizer viewer("Result Viewer");
 
 void pointpicking_cb(const pcl::visualization::PointPickingEvent& event)
@@ -78,7 +78,8 @@ int main(int argc, char** argv)
 
   const YAML::Node& config_sensor_nd = config["Sensors"];
 
-  const int num_bg = config["NumBackground"].as<int>();
+  // TODO: this is a hack, MUST BE FIXED IN NEAR FUTURE
+  const int num_bg = 1;//config["NumBackground"].as<int>();
   const int num_fg = config_sensor_nd[0]["PCDs"].size() - num_bg;
 
   // Fill in the sensor origins, so pointclouds can be transformed to a common frame
@@ -105,9 +106,9 @@ int main(int argc, char** argv)
   // Initialize the visualizer
   viewer.setBackgroundColor (0, 0, 0);
   viewer.registerPointPickingCallback(&pointpicking_cb);
-  viewer.addCoordinateSystem (0.05);
+  viewer.addCoordinateSystem (0.5);
   viewer.initCameraParameters ();
-  viewer.setCameraPose(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+  viewer.setCameraPosition(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
   //  viewer.registerKeyboardCallback (keyboardEventOccurred, NULL);
 
   // Load the point cloud and display them in the common frame

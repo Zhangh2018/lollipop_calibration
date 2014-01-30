@@ -4,3 +4,7 @@
 
 add_executable(sln2dat sln2dat.cpp)
 target_link_libraries(sln2dat yaml-cpp)
+
+add_executable (openni_ss openni_ss.cpp)
+target_link_libraries (openni_ss ${PCL_LIBRARIES})
+

@@ -31,7 +31,7 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void
   if (event.getKeyCode() == 'v' && event.keyDown ())
   {
     printf("v pressed");
-    viewer->setCameraPose(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+    viewer->setCameraPosition(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
   }
   if (event.getKeyCode() == 27 && event.keyDown ())
     {
@@ -65,7 +65,10 @@ void showfittedSphere(CloudType::Ptr cloud, std::vector<int>& pi, pcl::ModelCoef
 	}
     }
   else
-    outlier_cloud = cloud;
+    {
+      PCL_WARN("NO INLIER FOUND\n");
+      outlier_cloud = cloud;
+    }
 
   // Set up a custom color handler
   PointCloudColorHandlerCustom<PointType> outlier_handler(outlier_cloud,   0, 255, 0);
@@ -149,7 +152,7 @@ int main(int argc, char** argv)
   //      viewer.addCoordinateSystem (0.05);
   viewer->initCameraParameters();
   //  viewer->setCameraFieldOfView(50);
-  viewer->setCameraPose(0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+  viewer->setCameraPosition(0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
   viewer->registerKeyboardCallback (keyboardEventOccurred);
   
   // Load the config file
@@ -157,7 +160,6 @@ int main(int argc, char** argv)
   
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
-  const int num_bg              = config["NumBackground"].as<int>();
 
   const YAML::Node& sensors = config["Sensors"];
 
@@ -171,6 +173,7 @@ int main(int argc, char** argv)
   const int width     = sensors[i]["Width"].as<int>();
   const int height    = sensors[i]["Height"].as<int>();
 
+  const int num_bg         = sensors[i]["NumBackground"].as<int>();
   const float bg_threshold = sensors[i]["background_threshold"].as<float>();
   const float near_cutoff  = sensors[i]["near_cutoff"].as<float>();
   const float far_cutoff   = sensors[i]["far_cutoff"].as<float>();
@@ -245,5 +248,6 @@ int main(int argc, char** argv)
 	break;
       viewer->resetStoppedFlag();	  
     }
+
   return 0;	 
 }

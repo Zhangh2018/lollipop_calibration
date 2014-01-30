@@ -9,7 +9,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 find_package(Ceres REQUIRED)
 include_directories(${CERES_INCLUDES})
 
-find_package(PCL 1.5 REQUIRED PATHS /usr NO_DEFAULT_PATH)
+find_package(PCL 1.7 REQUIRED PATHS /usr NO_DEFAULT_PATH)
 
 include_directories(
    ${PROJECT_SOURCE_DIR}/include/

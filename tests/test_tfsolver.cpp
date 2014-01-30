@@ -1,5 +1,6 @@
 
 #include <yaml-cpp/yaml.h> // for loading config yaml file
+#include <iostream>
 #include <fstream>
 #include <vector>
 
@@ -13,6 +14,7 @@ int main(int argc, char** argv)
   if (argc < 2)
     {
       printf("Usage: %s <problem.yaml>\n", argv[0]);
+      printf("Two files will be produces in current folder: lsqr.yaml and nlsqr.yaml\n");
       exit(1);
     }
 
@@ -20,7 +22,7 @@ int main(int argc, char** argv)
   YAML::Node sensors= config["Sensors"];
   YAML::Node landmarks= config["Landmarks"];
 
-  std::vector<boost::shared_ptr<Sensor> > sv(sensors.size());
+  std::vector<boost::shared_ptr<Sensor>> sv(sensors.size());
   std::vector<Eigen::Vector3d> lv(landmarks.size());
 
   // Process the sensors first 
@@ -31,8 +33,8 @@ int main(int argc, char** argv)
       std::string type = sensors[i]["Type"].as<std::string>();
       std::string name = sensors[i]["Name"].as<std::string>();
 
-      std::cout<< "Create sensor of type: "<< type << " and name "<< name<<std::endl;
-      sv[i] = RangeSensor::Create(type, name);
+      sv[i] = RangeSensor::Create(name, type);
+      std::cout<< "Create sensor of type: "<< sv[i]->GetType() << " and name "<< sv[i]->GetName() <<std::endl;
 
       YAML::Node origin=node["Origin"];
 
@@ -75,9 +77,9 @@ int main(int argc, char** argv)
   for (int i=0; i < sv.size(); ++i)
     sv[i]->SolveLinearTf(lv);
 
-  SaveToYaml("lsqr.yaml", lv, sv);
+  //  SaveToYaml("lsqr.yaml", lv, sv);
   // Save intermediate result:
-  bool status;// = SaveToYaml("lsqr.yaml", lv, sv);
+  bool status = SaveToYaml("lsqr.yaml", lv, sv);
   
   // Then do the non-linear solving
   ceres::Problem problem;
@@ -85,7 +87,7 @@ int main(int argc, char** argv)
     sv[i]->InitCeresProblem(problem, lv);
 
   ceres::Solver::Options options;
-  options.max_num_iterations = 25;
+  options.max_num_iterations = 40;
   options.function_tolerance = 1e-10;
   options.minimizer_progress_to_stdout = true;
   options.linear_solver_type = ceres::DENSE_SCHUR;

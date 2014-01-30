@@ -55,6 +55,7 @@ int main(int argc, char** argv)
       const int width     = sensors[i]["Width"].as<int>();
       const int height    = sensors[i]["Height"].as<int>();
 
+      const int num_bg         = sensors[i]["NumBackground"].as<int>();
       const float bg_threshold = sensors[i]["background_threshold"].as<float>();
       const float near_cutoff  = sensors[i]["near_cutoff"].as<float>();
       const float far_cutoff   = sensors[i]["far_cutoff"].as<float>();
@@ -92,7 +93,7 @@ int main(int argc, char** argv)
       // 1. Subtract background
       // 2. Apply morphological operator to remove isolate each cluster
       // 3. Find the center of the sphere from pointcloud
-      for (int j = 1; j < pcd_node.size(); ++j)
+      for (int j = num_bg; j < pcd_node.size(); ++j)
 	{
 	  CloudType::Ptr fg(new CloudType);
 	  
@@ -112,7 +113,7 @@ int main(int argc, char** argv)
 	  bool flag = sp->RunPipeline((void*) &fg, (void*) &bg, (void*) opt, 
 				      inlier_idx, best_ctr);
 
-	  os << "      - ["<<j<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
+	  os << "      - ["<<j-num_bg<<", "<<best_ctr(0)<<", "<<best_ctr(1)<<", "<<best_ctr(2)<<"]"<<std::endl;
 
 	  // Save the first sensor's measurement as landmarks
 	  if (i==0)

@@ -58,7 +58,6 @@ int main(int argc, char** argv)
 
   const double target_radius    = config["target_ball_radius"].as<double>();
   const std::string glob_prefix = config["global_pcd_prefix"].as<std::string>();
-  const int num_bg              = config["NumBackground"].as<int>();
 
   const YAML::Node& sensor_nd = solved["Sensors"];
   const YAML::Node& landmk_nd = solved["Landmarks"];
@@ -110,6 +109,7 @@ int main(int argc, char** argv)
       t<< ext[0], ext[1], ext[2];
       q.w() = ext[3]; q.x() = ext[4]; q.y() = ext[5]; q.z() = ext[6];
 
+      const int num_bg    = config["Sensors"][i]["NumBackground"].as<int>();
       const double fl     = config["Sensors"][i]["focal_length"].as<double>();
       const int width     = config["Sensors"][i]["Width"].as<int>();
       const int height    = config["Sensors"][i]["Height"].as<int>();
@@ -203,13 +203,26 @@ void filterInliersFromDetection(CloudType::Ptr cloudp, Eigen::Vector3d& ctr,
 	  int linear_idx = v*width+u;
 	  //	  printf("idx = %d (%d, %d)\n", linear_idx, u, v);
 	  PointType& p = cloudp->points[linear_idx];
-	  
+	  /*
 	  double d = ((p.x-ctr(0))*(p.x-ctr(0)) +
 		      (p.y-ctr(1))*(p.y-ctr(1)) +
 		      (p.z-ctr(2))*(p.z-ctr(2)))/(radius*radius);
-#define INLIER_THRESHOLD 0.9		  
+#define INLIER_THRESHOLD 0.5		  
 	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
 	    inliers.push_back(linear_idx);
+	  */
+	  double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
+			    (p.y-ctr(1))*(p.y-ctr(1)) +
+			    (p.z-ctr(2))*(p.z-ctr(2)));
+
+	    double diff = std::abs(d-radius);
+#define RATIO 0.25
+
+	    if (diff < (RATIO*radius) )
+	      {
+		inliers.push_back(linear_idx);
+		//		printf("d=%lf, diff=%lf\n", d, diff);
+	      }
 	}
     }
 }
@@ -300,7 +313,7 @@ void showInliers(CloudType::ConstPtr cloud, std::vector<int>& inlier_list)
 
       viewer.addCoordinateSystem (0.05);
       viewer.initCameraParameters ();
-      viewer.setCameraPose(0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+      viewer.setCameraPosition(0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
 
       first_time = false;
     }

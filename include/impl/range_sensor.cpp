@@ -40,11 +40,17 @@ typedef pcl::PointCloud<PointType> CloudType;
 public:
   RangeSensor(std::string name="rs", std::string type="rs")
  :Sensor(name, type){}
-  
+  /*  
+  static Sensor* Create(std::string& name, std::string& type)
+  {
+    return new RangeSensor(name, type);
+  }
+  */
   static boost::shared_ptr<Sensor> Create(std::string& name, std::string& type)
   {
     return boost::shared_ptr<Sensor>(new RangeSensor(name, type));
   }
+
   /*********************************************************
   **********************************************************
         Functions related to Solving the rigid transform
@@ -70,8 +76,8 @@ public:
     while( it != _measure.end() )
       {
 	Eigen::Vector3d& v = it->second;
-	//	ceres::CostFunction* cf = Euclidean3DError::Create(v(0),v(1),v(2), false);
-	ceres::CostFunction* cf = Euclidean3DError::AngleReprojError::Create(v(0), v(1), v(2));
+	ceres::CostFunction* cf = Euclidean3DError::Create(v(0),v(1),v(2), false);
+	//	ceres::CostFunction* cf = Euclidean3DError::AngleReprojError::Create(v(0), v(1), v(2));
 	ceres::LossFunction* lf = NULL;
 	prob.AddResidualBlock(cf, lf, &(_origin[3]), &(_origin[0]), ldmk[it->first].data());
 	++it;
@@ -153,19 +159,18 @@ public:
     cost = nlsf.ComputeFitCost(centers[best_idx]);
 
     double fl = opt->focal_length;
-    /*
+    
     if (_type == "sr")
       fl = -opt->focal_length;
     else
       fl = opt->focal_length;
-    */
-    /*
+    
     remask_inliers(fg, centers[best_idx], inlier_idx, opt->width, opt->height,fl,opt->target_radius);
     
     nlsf.Clear();//reset the cost function
     nlsf.SetInputCloud(fg, inlier_idx);
     cost = nlsf.ComputeFitCost(centers[best_idx]);
-    */
+
     result = centers[best_idx];
     return true;
   }
@@ -200,7 +205,7 @@ private:
 			    (p.z-ctr(2))*(p.z-ctr(2)));
 
 	    double diff = std::abs(d-target_radius);
-#define RATIO 0.5
+#define RATIO 0.2
 	    if (diff < (RATIO*target_radius) )
 	      {
 		inliers.push_back(linear_idx);
