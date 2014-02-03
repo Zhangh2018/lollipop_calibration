@@ -16,7 +16,7 @@ public:
   Sensor(std::string name, std::string type):_name(name), _type(type){};
 
   // Solve the extrinsic as a linear problem -> gives a good initial guess
-  virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk)=0;
+  virtual Eigen::MatrixXd SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk)=0;
 
   // Setup the joint problem as a nonlinear optimization problem
   virtual void InitCeresProblem(ceres::Problem& prob,

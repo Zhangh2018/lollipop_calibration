@@ -141,7 +141,7 @@ namespace Euclidean3DError
 	        (rp[0]*p[2]-rp[2]*p[0])*(rp[0]*p[2]-rp[2]*p[0])+
 	        (rp[0]*p[1]-rp[1]*p[0])*(rp[0]*p[1]-rp[1]*p[0]);
       // As in Guan08 paper
-      residuals[0] = ceres::sqrt(sine2)/(rp[0]*p[0]+rp[1]*p[1]*rp[2]*p[2]);
+      residuals[0] = ceres::sqrt(sine2/(rp[0]*p[0]+rp[1]*p[1]*rp[2]*p[2]));
       return true;
     }
 

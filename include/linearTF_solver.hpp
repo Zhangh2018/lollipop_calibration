@@ -12,7 +12,7 @@ public:
 
   void AddPointPair(Eigen::Vector3d& ref, Eigen::Vector3d& tgt);
 
-  void EstimateTfSVD(double* origin);
+  Eigen::MatrixXd EstimateTfSVD(double* origin);
 
 private:
   unsigned int max_pts, cur_pt;

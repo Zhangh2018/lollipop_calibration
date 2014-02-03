@@ -15,11 +15,12 @@ void LinearTfSolver::AddPointPair(Eigen::Vector3d& ref, Eigen::Vector3d& tgt)
     }
 }
 
-void LinearTfSolver::EstimateTfSVD(double* origin)
+Eigen::MatrixXd LinearTfSolver::EstimateTfSVD(double* origin)
 {
   // Subtract the mean from the points
   Eigen::Vector3d mean_ref = cloud_ref.rowwise().mean();
   cloud_ref.colwise() -= mean_ref;
+  //  Eigen::MatrixXd cloud_tgt_original = cloud_tgt;
   Eigen::Vector3d mean_tgt = cloud_tgt.rowwise().mean();
   cloud_tgt.colwise() -= mean_tgt;
 
@@ -52,4 +53,14 @@ void LinearTfSolver::EstimateTfSVD(double* origin)
   origin[4] = q.x();
   origin[5] = q.y();
   origin[6] = q.z();
+
+  // Transform the src cloud to target cloud;
+  Eigen::MatrixXd tf_src = Eigen::MatrixXd::Zero(cloud_ref.rows(), cloud_ref.cols());
+  Eigen::Quaterniond qi = q.inverse();
+  for (int i=0; i< tf_src.cols(); ++i)
+    {
+      tf_src.col(i) = q*(cloud_tgt.col(i)+mean_tgt) + t;
+    }
+  //  std::cout << "R: "<< tf_src.rows() <<" C: " << tf_src.cols()<<std::endl;
+  return tf_src;
 }

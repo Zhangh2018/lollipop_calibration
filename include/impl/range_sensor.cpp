@@ -56,7 +56,7 @@ public:
         Functions related to Solving the rigid transform
    *********************************************************
    ********************************************************/
-  virtual void SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk)
+  virtual Eigen::MatrixXd SolveLinearTf(std::vector<Eigen::Vector3d>& ldmk)
   {
     LinearTfSolver lts(_measure.size());
     std::map<int, Eigen::Vector3d>::iterator it = _measure.begin();
@@ -66,7 +66,7 @@ public:
 	++it;
       }
   
-    lts.EstimateTfSVD(&(_origin[0]));
+    return lts.EstimateTfSVD(&(_origin[0]));
   }
 
   virtual void InitCeresProblem(ceres::Problem& prob,

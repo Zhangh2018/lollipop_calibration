@@ -36,9 +36,10 @@ int main(int argc, char** argv)
       sv[i] = RangeSensor::Create(name, type);
       std::cout<< "Create sensor of type: "<< sv[i]->GetType() << " and name "<< sv[i]->GetName() <<std::endl;
 
-      YAML::Node origin=node["Origin"];
+      YAML::Node origin=sensors[i]["Origin"];
 
       std::vector<double> vec(origin.size());
+      //      std::cout << "Origin size = "<< origin.size() << std::endl;
       for (int j=0; j < origin.size(); ++j)
 	vec[j] = origin[j].as<double>();
 	
@@ -74,13 +75,19 @@ int main(int argc, char** argv)
 
   
   // Now do the solving part...
-  for (int i=0; i < sv.size(); ++i)
-    sv[i]->SolveLinearTf(lv);
+  Eigen::MatrixXd lmk_mat = sv[0]->SolveLinearTf(lv);
+  int nSensor = sv.size();
+  for (int i=1; i < nSensor; ++i)
+    lmk_mat += sv[i]->SolveLinearTf(lv);
+  
+  // The new landmark is the average of the transformed landmark.
+  for (int j=0; j < lv.size(); ++j)
+    lv[j] = lmk_mat.col(j)/double(nSensor);
 
-  //  SaveToYaml("lsqr.yaml", lv, sv);
+  SaveToYaml("lsqr.yaml", lv, sv);
   // Save intermediate result:
   bool status = SaveToYaml("lsqr.yaml", lv, sv);
-  
+    
   // Then do the non-linear solving
   ceres::Problem problem;
   for (int i=0; i < sv.size(); ++i)
