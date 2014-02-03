@@ -34,3 +34,6 @@ target_link_libraries(single_cam ${PCL_LIBRARIES}  ${CERES_LIBRARIES} yaml-cpp)
 
 add_executable(proc_gt proc_gt.cpp)
 target_link_libraries(proc_gt ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+add_executable(proc_gt_yaml proc_gt_yaml.cpp)
+target_link_libraries(proc_gt_yaml yaml-cpp ${PCL_LIBRARIES} ${CERES_LIBRARIES})

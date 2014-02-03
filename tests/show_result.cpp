@@ -18,10 +18,25 @@ typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointType> ColorHandler;
 
-double r[] = {255.0,   0.0, 255.0,   0.0, 255.0,   0.0};
-double g[] = {  0.0, 255.0, 255.0,   0.0,   0.0, 255.0};
-double b[] = {  0.0,   0.0,   0.0, 255.0, 255.0, 255.0};
+double r[] = {  0.0,   0.0, 255.0, 250.0, 255.0,   0.0};
+double g[] = {255.0, 255.0, 255.0,   0.0,   0.0,   0.0};
+double b[] = {255.0,   0.0,   0.0,   0.0, 255.0, 255.0};
 pcl::visualization::PCLVisualizer viewer("Result Viewer");
+static bool g_exit_flag = false;
+
+void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void* viewer_void)
+{
+  if (event.getKeyCode() == 'v' && event.keyDown ())
+  {
+    //    printf("v pressed");
+    viewer.setCameraPosition(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+  }
+  if (event.getKeyCode() == 27 && event.keyDown ())
+    {
+      viewer.close();
+      g_exit_flag = true;
+    }
+}
 
 void pointpicking_cb(const pcl::visualization::PointPickingEvent& event)
 {
@@ -67,7 +82,9 @@ int main(int argc, char** argv)
 
   std::ofstream os;
 
+  PCL_INFO("Load file %s\n", argv[1]);
   YAML::Node config = YAML::LoadFile(argv[1]);
+  PCL_INFO("Load file %s\n", argv[2]);
   YAML::Node solved = YAML::LoadFile(argv[2]);
  
   const double target_radius    = config["target_ball_radius"].as<double>();
@@ -109,6 +126,7 @@ int main(int argc, char** argv)
   viewer.addCoordinateSystem (0.5);
   viewer.initCameraParameters ();
   viewer.setCameraPosition(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+  viewer.registerKeyboardCallback (keyboardEventOccurred);
   //  viewer.registerKeyboardCallback (keyboardEventOccurred, NULL);
 
   // Load the point cloud and display them in the common frame
@@ -173,9 +191,11 @@ int main(int argc, char** argv)
 	  viewer.spinOnce(100);
 	  boost::this_thread::sleep(boost::posix_time::microseconds(100000));
 	}
-      
+      if(g_exit_flag)
+	break;
       viewer.resetStoppedFlag();
     }
+
   viewer.close();
   return 0;
 }
