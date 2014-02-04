@@ -33,18 +33,7 @@ namespace Euclidean3DError
       rp[0] += cam_tran[0];
       rp[1] += cam_tran[1];
       rp[2] += cam_tran[2];
-      /*      
-      std::cout<<"point [";
-      std::cout<< std::setw(10) << std::setfill(' ')<< p[0]<<" ";
-      std::cout<< std::setw(10) << std::setfill(' ')<< p[1]<<" ";
-      std::cout<< std::setw(10) << std::setfill(' ')<< p[2]<<"]->[";
-      std::cout<< std::setw(10) << std::setfill(' ')<< rp[0]<<" ";
-      std::cout<< std::setw(10) << std::setfill(' ')<< rp[1]<<" ";
-      std::cout<< std::setw(10) << std::setfill(' ')<< rp[2]<<"]<-[";
-      std::cout<< std::setw(10) << std::setfill(' ')<< point[0] <<" "; 
-      std::cout<< std::setw(10) << std::setfill(' ')<< point[1] << " ";
-      std::cout<< std::setw(10) << std::setfill(' ')<< point[2]<<"]\n";
-      */
+
       residuals[0] = rp[0] - point[0];
       residuals[1] = rp[1] - point[1];
       residuals[2] = rp[2] - point[2];
@@ -109,7 +98,23 @@ namespace Euclidean3DError
     
     double p[3]; // observed (x, y, z)
   };
+  /*
+  class AngleError
+  {
+  public:
+    static ceres::CostFunction* Create(double x, double y, double z)
+    {
+      return new ceres::AutoDiffCostFunction<AngleReprojError,2,4,3,3>(
+			new AngleError(x, y, z));
 
+      AngleError(double ox, double oy, double oz)
+	:_ox(ox), _oy(oy), _oz(oz)
+      {
+	q = 
+      }
+    }
+  };
+  */
   class AngleReprojError
   {
   public:
@@ -218,6 +223,14 @@ namespace Euclidean3DError
   };
   double RayAutoError::R = 0.0;
 
+
+};
+
+#endif
+
+
+/// Deprecated:
+/*
 
   // WARNING: This one optimizes a local quaternion, 
   // Q.w needs to be re-computed after the optimization
@@ -346,7 +359,4 @@ namespace Euclidean3DError
     double x,y,z,r;
   };
   double RayCostError::R = 0.0;
-
-};
-
-#endif
+*/

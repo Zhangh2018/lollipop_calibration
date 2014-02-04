@@ -11,18 +11,20 @@ target_link_libraries(solveTf ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 #add_executable(run2nd test_2ndpass.cpp)
 #target_link_libraries(run2nd ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
-#add_executable(show_result show_result.cpp)
-#target_link_libraries(show_result ${PCL_LIBRARIES} yaml-cpp)
+add_executable(show_result show_result.cpp)
+target_link_libraries(show_result ${PCL_LIBRARIES} yaml-cpp)
+
+add_executable(show_result_clr show_result_clr.cpp)
+target_link_libraries(show_result_clr ${PCL_LIBRARIES} yaml-cpp)
 
 #add_executable(error_analysis error_analysis.cpp)
 #target_link_libraries(error_analysis ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
-#add_executable(pipeline test_pipeline.cpp)
-#target_link_libraries(pipeline ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
+add_executable(pipeline test_pipeline.cpp)
+target_link_libraries(pipeline ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 
-
-#add_executable(single_cam test_single_cam.cpp)
-#target_link_libraries(single_cam ${PCL_LIBRARIES}  ${CERES_LIBRARIES} yaml-cpp)
+add_executable(single_cam test_single_cam.cpp)
+target_link_libraries(single_cam ${PCL_LIBRARIES}  ${CERES_LIBRARIES} yaml-cpp)
 
 #add_executable(proc_gt proc_gt.cpp)
 #target_link_libraries(proc_gt ${PCL_LIBRARIES} ${CERES_LIBRARIES})

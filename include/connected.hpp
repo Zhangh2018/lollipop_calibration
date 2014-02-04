@@ -38,10 +38,10 @@ private:
     };
 
     bool is_root_label(int id) {
-	return (labels[id].sameas == id);
+      return (id<=labels.size() && labels[id].sameas == id);
     }
     int root_of(int id) {
-	while (!is_root_label(id)) {
+      while (!is_root_label(id) && labels[id].sameas<=labels.size()) {
 	    // link this node to its parent's parent, just to shorten
 	    // the tree.
 	    labels[id].sameas = labels[labels[id].sameas].sameas;
