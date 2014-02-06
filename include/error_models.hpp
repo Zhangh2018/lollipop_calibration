@@ -165,13 +165,14 @@ namespace Euclidean3DError
   class RayAutoError
   {
   public:
-    RayAutoError(double px, double py, double pz)
-      :x(px), y(py), z(pz)
+    RayAutoError(double px, double py, double pz, double pw=1.0)
+    //      :x(px), y(py), z(pz)
     {
-      //      r  = std::sqrt(px*px+py*py+pz*pz);// + 1e-5
-      //      x  = px / r;
-      //      y  = py / r;
-      //      z  = pz / r;
+      r  = std::sqrt(px*px+py*py+pz*pz);// + 1e-5
+      x  = px / r;
+      y  = py / r;
+      z  = pz / r;
+      w  = pw;
     }
     
     template <typename T>
@@ -179,10 +180,10 @@ namespace Euclidean3DError
 		    const T* const center, T* residuals) const
     {
       static int i=0;
-      double r  = std::sqrt(x*x+y*y+z*z);// + 1e-5
-      T tx = T(x/r);
-      T ty = T(y/r);
-      T tz = T(z/r);
+      //      double r  = std::sqrt(x*x+y*y+z*z);// + 1e-5
+      T tx = T(x);
+      T ty = T(y);
+      T tz = T(z);
       T tr = T(r);
       T tR = T(this->R);
 
@@ -219,7 +220,7 @@ namespace Euclidean3DError
     }
     
     static double R;
-    double x,y,z;
+    double x,y,z,r,w;
   };
   double RayAutoError::R = 0.0;
 

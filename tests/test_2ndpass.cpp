@@ -152,7 +152,7 @@ int main(int argc, char** argv)
 	  for (int k=0; k < inlier_list.size(); ++k)
 	    {
 	      PointType& p = cloudp->points[inlier_list[k]];
-	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayAutoError,1,4,3,3>(new Euclidean3DError::RayAutoError(p.x, p.y, p.z));
+	      ceres::CostFunction* cf = new ceres::AutoDiffCostFunction<Euclidean3DError::RayAutoError,1,4,3,3>(new Euclidean3DError::RayAutoError(p.x, p.y, p.z, 1.0/(width*height)));
 	      //	      ceres::CostFunction* cf = new Euclidean3DError::RayCostError(p.x, p.y, p.z);
 	      ceres::LossFunction* lf = new ceres::HuberLoss(1.0);
 	      prob.AddResidualBlock(cf, lf, &(ext[3]), &(ext[0]), landmk_vc[j].data());
@@ -189,6 +189,7 @@ void filterInliersFromDetection(CloudType::Ptr cloudp, Eigen::Vector3d& ctr,
   printf("Search window = %d, centered at <%d, %d>\n", ws, u0, v0);
 
   //  std::vector<int> inlier_list;
+  const double D = std::sqrt(ctr(0)*ctr(0)+ctr(1)*ctr(1)+ctr(2)*ctr(2));
   for(int u=u0-ws; u<=u0+ws; ++u)
     {
       for(int v=v0-ws; v<=v0+ws; ++v)
@@ -197,7 +198,8 @@ void filterInliersFromDetection(CloudType::Ptr cloudp, Eigen::Vector3d& ctr,
 	    continue;
 
 	  // This condition ensures a circular shape
-	  if (ws*ws < ((u-u0)*(u-u0)+(v-v0)*(v-v0)))
+	  double diff_2d = std::sqrt(double((u-u0)*(u-u0)+(v-v0)*(v-v0)));
+	  if (diff_2d > ws)
 	    continue;
 
 	  int linear_idx = v*width+u;
@@ -211,14 +213,18 @@ void filterInliersFromDetection(CloudType::Ptr cloudp, Eigen::Vector3d& ctr,
 	  if ( d < (1+INLIER_THRESHOLD) && d > (1-INLIER_THRESHOLD) )
 	    inliers.push_back(linear_idx);
 	  */
+	  /*
 	  double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
 			    (p.y-ctr(1))*(p.y-ctr(1)) +
 			    (p.z-ctr(2))*(p.z-ctr(2)));
 
-	    double diff = std::abs(d-radius);
-#define RATIO 0.25
+	  double diff_3d = std::abs(d-radius);
+	  */
+	  double d = std::sqrt(p.x*p.x+p.y*p.y+p.z*p.z);
+#define RATIO 1.5
 
-	    if (diff < (RATIO*radius) )
+	  //	  if (diff_3d < (RATIO*radius) )
+	  if( d < D && d > (D-RATIO*radius))// if the point is in front of the sphere center
 	      {
 		inliers.push_back(linear_idx);
 		//		printf("d=%lf, diff=%lf\n", d, diff);
