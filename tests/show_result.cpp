@@ -19,7 +19,7 @@ typedef pcl::PointCloud<PointType> CloudType;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointType> ColorHandler;
 
 double r[] = {255.0,   0.0,   0.0, 250.0, 255.0,   0.0};
-double g[] = {255.0, 255.0, 255.0,   0.0,   0.0,   0.0};
+double g[] = {128.0, 255.0, 255.0,   0.0,   0.0,   0.0};
 double b[] = {  0.0,   0.0, 255.0,   0.0, 255.0, 255.0};
 pcl::visualization::PCLVisualizer viewer("Result Viewer");
 static bool g_exit_flag = false;
@@ -169,7 +169,10 @@ int main(int argc, char** argv)
 	    {
 	      //	      colorH[j].reset(new ColorHandler(tf_cloud, r[j], g[j], b[j]));
 	      viewer.addPointCloud<PointType>(tf_cloud, colorH, sensor_name);
-	      viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, sensor_name);
+	      double size = 1;
+	      if(j==0)
+		size = 2;
+	      viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, size, sensor_name);
 	    }
 	}
 
@@ -180,10 +183,10 @@ int main(int argc, char** argv)
       sz = solved_landmk_nd[i][3].as<double>();
 
       if (i > 0)
-	viewer.updateSphere(pcl::PointXYZ(sx,sy,sz), target_radius, 1.0, 1.0, 1.0, "sphere");
+	viewer.updateSphere(pcl::PointXYZ(sx,sy,sz), target_radius, 0.5, 0.5, 0.5, "sphere");
       else
 	{
-	  viewer.addSphere(pcl::PointXYZ(sx, sy, sz), target_radius, 1.0, 1.0, 1.0, "sphere");
+	  viewer.addSphere(pcl::PointXYZ(sx, sy, sz), target_radius, 0.5, 0.5, 0.5, "sphere");
 	  viewer.addCoordinateSystem (0.05);
 	  viewer.initCameraParameters ();
 	  viewer.resetCameraViewpoint("sphere");

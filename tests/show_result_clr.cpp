@@ -14,7 +14,7 @@
 // Loading config files
 #include <yaml-cpp/yaml.h>
 
-typedef pcl::PointXYZRGBA PointType;
+typedef pcl::PointXYZRGB PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointType> ColorHandler;
 
@@ -97,9 +97,9 @@ int main(int argc, char** argv)
   const int num_fg = config_sensor_nd[0]["PCDs"].size() - num_bg;
 
   // Fill in the sensor origins, so pointclouds can be transformed to a common frame
-  const int num_sensors = solved_sensor_nd.size();
-  std::vector<Eigen::Vector3f> t(num_sensors);
-  std::vector<Eigen::Quaternionf> q(num_sensors);
+  //  const int num_sensors = solved_sensor_nd.size();
+  //  std::vector<Eigen::Vector3f> t(num_sensors);
+  //  std::vector<Eigen::Quaternionf> q(num_sensors);
 
   // Initialize the visualizer
   viewer.setBackgroundColor (0, 0, 0);
@@ -109,6 +109,32 @@ int main(int argc, char** argv)
   viewer.setCameraPosition(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
   viewer.registerKeyboardCallback (keyboardEventOccurred);
   //  viewer.registerKeyboardCallback (keyboardEventOccurred, NULL);
+
+// Fill in the sensor origins, so pointclouds can be transformed to a common frame
+  const int num_sensors = solved_sensor_nd.size();
+  std::vector<Eigen::Vector3f> t(num_sensors);
+  std::vector<Eigen::Quaternionf> q(num_sensors);
+  for (int j=0; j < num_sensors; ++j)
+    {
+      const YAML::Node& origin = solved_sensor_nd[j]["Origin"];
+      float w, x, y, z;
+      x = origin[0].as<float>();
+      y = origin[1].as<float>();
+      z = origin[2].as<float>();
+      t[j] << x, y, z;
+
+      printf("Sensor[%d] at [%f %f %f ", j, x, y, z);
+      w = origin[3].as<float>(); x = origin[4].as<float>();
+      y = origin[5].as<float>(); z = origin[6].as<float>();
+      Eigen::Quaternionf& qj = q[j];
+      qj.w() = w; qj.x() = x; qj.y() = y; qj.z() = z;
+      printf("%f %f %f %f]\n", w, x, y, z);
+      Eigen::Translation<float, 3> trans(t[j]);
+      Eigen::Affine3f axes = trans*qj;
+
+      // Add a coordinate system at each camera's origin
+      viewer.addCoordinateSystem(0.5, axes);
+    }
 
   // Load the point cloud and display them in the common frame
   for (int i=0; i < num_fg; ++i)
@@ -132,21 +158,22 @@ int main(int argc, char** argv)
 	  else
 	    PCL_WARN("Loaded PCD %s\n", full_path.c_str());
 
-	  pcl::transformPointCloud(*raw_cloud, *tf_cloud, t[j], q[j]);
+	  //	  pcl::transformPointCloud(*raw_cloud, *tf_cloud, t[j], q[j]);
 
 	  //	  ColorHandler colorH(tf_cloud, r[j], g[j], b[j]);
 	  // Add/Update point cloud to viewer:
+	  pcl::visualization::PointCloudColorHandlerRGBField<PointType> rgb(raw_cloud);
 	  if (i > 0)//TODO: Is filename a good identifier?
 	    {
-	      viewer.updatePointCloud<PointType>(tf_cloud, sensor_name);
+	      viewer.updatePointCloud<PointType>(raw_cloud, rgb, sensor_name);
 	      //	      printf("Update points\n");
 	    }
 	  else
 	    {
 	      //	      colorH[j].reset(new ColorHandler(tf_cloud, r[j], g[j], b[j]));
-	      pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(tf_cloud);
+	      
 	      //	      viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "sample cloud");
-	      viewer.addPointCloud<PointType>(tf_cloud, rgb, sensor_name);
+	      viewer.addPointCloud<PointType>(raw_cloud, rgb, sensor_name);
 	      //	      viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, sensor_name);
 	    }
 	}

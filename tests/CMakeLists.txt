@@ -14,8 +14,8 @@ target_link_libraries(run2nd ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
 add_executable(show_result show_result.cpp)
 target_link_libraries(show_result ${PCL_LIBRARIES} yaml-cpp)
 
-#add_executable(show_result_clr show_result_clr.cpp)
-#target_link_libraries(show_result_clr ${PCL_LIBRARIES} yaml-cpp)
+add_executable(show_result_clr show_result_clr.cpp)
+target_link_libraries(show_result_clr ${PCL_LIBRARIES} yaml-cpp)
 
 #add_executable(error_analysis error_analysis.cpp)
 #target_link_libraries(error_analysis ${PCL_LIBRARIES} ${CERES_LIBRARIES} yaml-cpp)
