@@ -18,9 +18,9 @@ typedef pcl::PointXYZ PointType;
 typedef pcl::PointCloud<PointType> CloudType;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointType> ColorHandler;
 
-double r[] = {  0.0,   0.0, 255.0, 250.0, 255.0,   0.0};
+double r[] = {255.0,   0.0,   0.0, 250.0, 255.0,   0.0};
 double g[] = {255.0, 255.0, 255.0,   0.0,   0.0,   0.0};
-double b[] = {255.0,   0.0,   0.0,   0.0, 255.0, 255.0};
+double b[] = {  0.0,   0.0, 255.0,   0.0, 255.0, 255.0};
 pcl::visualization::PCLVisualizer viewer("Result Viewer");
 static bool g_exit_flag = false;
 
@@ -99,6 +99,15 @@ int main(int argc, char** argv)
   const int num_bg = 1;//config["NumBackground"].as<int>();
   const int num_fg = config_sensor_nd[0]["PCDs"].size() - num_bg;
 
+  // Initialize the visualizer
+  viewer.setBackgroundColor (0, 0, 0);
+  viewer.registerPointPickingCallback(&pointpicking_cb);
+  //  viewer.addCoordinateSystem (0.5);
+  viewer.initCameraParameters ();
+  viewer.setCameraPosition(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+  viewer.registerKeyboardCallback (keyboardEventOccurred);
+  //  viewer.registerKeyboardCallback (keyboardEventOccurred, NULL);
+
   // Fill in the sensor origins, so pointclouds can be transformed to a common frame
   const int num_sensors = solved_sensor_nd.size();
   std::vector<Eigen::Vector3f> t(num_sensors);
@@ -118,16 +127,12 @@ int main(int argc, char** argv)
       Eigen::Quaternionf& qj = q[j];
       qj.w() = w; qj.x() = x; qj.y() = y; qj.z() = z;
       printf("%f %f %f %f]\n", w, x, y, z);
-    }
+      Eigen::Translation<float, 3> trans(t[j]);
+      Eigen::Affine3f axes = trans*qj;
 
-  // Initialize the visualizer
-  viewer.setBackgroundColor (0, 0, 0);
-  viewer.registerPointPickingCallback(&pointpicking_cb);
-  viewer.addCoordinateSystem (0.5);
-  viewer.initCameraParameters ();
-  viewer.setCameraPosition(0.0, 0.0, -1.5, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
-  viewer.registerKeyboardCallback (keyboardEventOccurred);
-  //  viewer.registerKeyboardCallback (keyboardEventOccurred, NULL);
+      // Add a coordinate system at each camera's origin
+      viewer.addCoordinateSystem(0.5, axes);
+    }
 
   // Load the point cloud and display them in the common frame
   for (int i=0; i < num_fg; ++i)

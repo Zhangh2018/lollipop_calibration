@@ -185,6 +185,7 @@ private:
  
     printf("Search window = %d, centered at <%d, %d>\n", ws, u0, v0);
 
+    double D = std::sqrt(ctr(0)*ctr(0)+ctr(1)*ctr(1)+ctr(2)*ctr(2));
     //  std::vector<int> inlier_list;
     for(int u=u0-ws; u<=u0+ws; ++u)
       {
@@ -199,14 +200,18 @@ private:
 
 	    int linear_idx = v*width+u;
 	    PointType& p = cloudp->points[linear_idx];
-
+	    /*
 	    double d = sqrt((p.x-ctr(0))*(p.x-ctr(0)) +
 			    (p.y-ctr(1))*(p.y-ctr(1)) +
 			    (p.z-ctr(2))*(p.z-ctr(2)));
+	    */
+	    double d = std::sqrt(p.x*p.x+p.y*p.y+p.z*p.z);
 
-	    double diff = std::abs(d-target_radius);
-#define RATIO 0.2
-	    if (diff < (RATIO*target_radius) )
+	    //	    double diff = std::abs(d-target_radius);
+	    //#define RATIO 0.2
+#define INFRONT_RATIO 1.5
+	    //	    if (diff < (RATIO*target_radius) )
+	    if (d< D && d > (D-INFRONT_RATIO*target_radius))
 	      {
 		inliers.push_back(linear_idx);
 		//		printf("d=%lf, diff=%lf\n", d, diff);
